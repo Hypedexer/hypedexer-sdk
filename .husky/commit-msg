@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+set -eu
+
+COMMIT_MSG_FILE="$1"
+
+if grep -iqE '^Co-Authored-By:.*(noreply@anthropic\.com|noreply@openai\.com|claude|copilot|gpt[ -]?[0-9]?|cursor\.sh|aider|cline|devin|codeium)' "$COMMIT_MSG_FILE"; then
+  printf 'commit-msg: AI co-author footer detected. Remove it and try again.\n' >&2
+  exit 1
+fi
+
+npx --no -- commitlint --edit "$COMMIT_MSG_FILE"

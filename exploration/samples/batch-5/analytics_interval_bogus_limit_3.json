@@ -1,0 +1,1 @@
+{"detail":[{"type":"literal_error","loc":["query","interval"],"msg":"Input should be '1h', '4h' or '1d'","input":"bogus","ctx":{"expected":"'1h', '4h' or '1d'"}}]}

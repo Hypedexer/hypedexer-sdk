@@ -1,0 +1,2 @@
+{"detail":[{"type":"enum","loc":["query","event_type",0],"msg":"Input should be 'deposit', 'withdrawal', 'transfer_in', 'transfer_out', 'class_transfer', 'sub_account', 'vault' or 'agent_send'","input":"bogus","ctx":{"expected":"'deposit', 'withdrawal', 'transfer_in', 'transfer_out', 'class_transfer', 'sub_account', 'vault' or 'agent_send'"}}]}
+---STATUS:422 TIME:0.890537

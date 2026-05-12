@@ -1,0 +1,15 @@
+HTTP/2 200 
+date: Mon, 11 May 2026 16:54:37 GMT
+content-type: application/json
+content-length: 679
+cf-ray: 9fa2b4dd98a9cf03-ORD
+cf-cache-status: DYNAMIC
+server: cloudflare
+x-credit-balance: 3030946
+x-credit-cost: 1
+x-process-time: 161.26
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=hf4PuymjVThIse0D9%2B4Hm0nAadYVPsmIllFJVjX22pElpzrNi7GCbI%2BjBsNpuKpbcmCfOPmTNo2Jn4akupHwUfNNpBLZzECD8l%2B69g%2FPV9H3p9H3xNpno8ZDZacxFJuBSs2U%2FQ%3D%3D"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+alt-svc: h3=":443"; ma=86400
+
+[{"time":"2026-05-11T16:54:35.880000","dex_id":"xyz","coin":"xyz:SILVER","user":"0x354bcb431a332079950d2ce3a4698745e0f66425","side":"B","px":85.202,"sz":30.34,"notional":2585.02868,"fee":0.074448,"builder_fee_usd":0.074448,"is_liquidation":0,"hash":"0x365f945511bb29de37d9043b2ad22b020494003aacbe48b0da283fa7d0bf03c8","tid":10849496803685},{"time":"2026-05-11T16:54:35.880000","dex_id":"xyz","coin":"xyz:SILVER","user":"0xe8fd6379f60487a463a38395f598b3008ad8489c","side":"A","px":85.202,"sz":30.34,"notional":2585.02868,"fee":0.007755,"builder_fee_usd":0.007755,"is_liquidation":0,"hash":"0x365f945511bb29de37d9043b2ad22b020494003aacbe48b0da283fa7d0bf03c8","tid":10849496803685}]

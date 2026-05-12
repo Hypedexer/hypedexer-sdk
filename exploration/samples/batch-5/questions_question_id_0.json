@@ -1,0 +1,1 @@
+{"status":"live","count":1,"data":[{"question_id":0,"name":"Recurring","description":"class:priceBucket|underlying:BTC|expiry:20260508-0600|priceThresholds:79303,82540|period:1d","fallback_outcome":6,"named_outcomes":[7,8,9],"settled_named_outcomes":[],"updated_at":"2026-05-08T06:00:06.301000"}]}

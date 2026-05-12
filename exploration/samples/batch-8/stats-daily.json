@@ -1,0 +1,2 @@
+{"success":true,"message":"Fetched 4 daily rows","data":[{"day":"2026-05-11","blocks":3082,"transactions":8137,"system_txs":119,"gas_used":1959502533},{"day":"2026-05-10","blocks":3955,"transactions":11428,"system_txs":148,"gas_used":2528018555},{"day":"2026-05-09","blocks":3713,"transactions":9756,"system_txs":210,"gas_used":2153608692},{"day":"2026-05-08","blocks":4471,"transactions":12460,"system_txs":205,"gas_used":2662456694}],"total_count":null,"execution_time_ms":11.78,"next_cursor":null,"has_more":true}
+---STATUS:200 TIME:1.274282
