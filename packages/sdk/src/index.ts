@@ -332,6 +332,45 @@ export type {
 } from './types/priority-fees.js'
 
 // -----------------------------------------------------------------------------
+// Resource types — Tier-2: EVM
+// -----------------------------------------------------------------------------
+
+export {
+  EVM_BRIDGE_EVENT_TYPES,
+  EVM_LEDGER_ACTION_TYPES,
+  EVM_USER_LEDGER_EVENT_TYPES,
+} from './types/evm.js'
+export type {
+  EvmBackstopFill,
+  EvmBackstopFillsParams,
+  EvmBackstopHealth,
+  EvmBackstopTransfer,
+  EvmBackstopTransfersParams,
+  EvmBackstopTransfersSummary,
+  EvmBlock,
+  EvmBlockTransactionsParams,
+  EvmBlocksParams,
+  EvmBridgeEvent,
+  EvmBridgeEventType,
+  EvmBridgeEventsParams,
+  EvmDailyStat,
+  EvmLedgerActionType,
+  EvmLedgerTransfer,
+  EvmLedgerTransfersParams,
+  EvmLog,
+  EvmLogsParams,
+  EvmStats,
+  EvmStatsDailyParams,
+  EvmTransaction,
+  EvmTransactionsParams,
+  EvmTxType,
+  EvmUserLedgerEvent,
+  EvmUserLedgerEventType,
+  EvmUserLedgerEventsParams,
+  EvmUserLedgerSummaryRow,
+} from './types/evm.js'
+
+// -----------------------------------------------------------------------------
 // Resource types — Tier-2: /info dispatcher
 // -----------------------------------------------------------------------------
 
@@ -376,6 +415,7 @@ export { FundingResource } from './resources/funding.js'
 export { VaultsResource } from './resources/vaults.js'
 export { PriorityFeesResource } from './resources/priority-fees.js'
 export { InfoResource } from './resources/info.js'
+export { EvmResource } from './resources/evm.js'
 
 // -----------------------------------------------------------------------------
 // Client factory

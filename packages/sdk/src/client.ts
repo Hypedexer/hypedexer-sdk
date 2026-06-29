@@ -1,6 +1,7 @@
 import { AnalyticsResource } from './resources/analytics.js'
 import { BuildersResource } from './resources/builders.js'
 import { CompletedTradesResource } from './resources/completed-trades.js'
+import { EvmResource } from './resources/evm.js'
 import { Fills } from './resources/fills.js'
 import { FundingResource } from './resources/funding.js'
 import { Hip3Resource } from './resources/hip3.js'
@@ -34,7 +35,7 @@ export interface HypedexerClient {
   readonly users: UsersResource
   readonly completedTrades: CompletedTradesResource
   readonly liquidations: Liquidations
-  // Tier-2 — hip3, hip4, builders, twaps, funding, vaults, priority-fees, info.
+  // Tier-2 — hip3, hip4, builders, twaps, funding, vaults, priority-fees, info, evm.
   readonly hip3: Hip3Resource
   readonly hip4: Hip4Resource
   readonly builders: BuildersResource
@@ -43,6 +44,7 @@ export interface HypedexerClient {
   readonly vaults: VaultsResource
   readonly priorityFees: PriorityFeesResource
   readonly info: InfoResource
+  readonly evm: EvmResource
   readonly http: HttpClient
 }
 
@@ -72,6 +74,7 @@ export function createClient(opts: HypedexerClientOptions): HypedexerClient {
     vaults: new VaultsResource(http),
     priorityFees: new PriorityFeesResource(http),
     info: new InfoResource(http),
+    evm: new EvmResource(http),
     http,
   }
 }
