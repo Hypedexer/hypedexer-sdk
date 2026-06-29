@@ -84,6 +84,19 @@ function buildUserVaultEquitiesQuery(params: UserVaultEquitiesParams): Query {
   return { user: params.user }
 }
 
+/**
+ * Map the upstream `/vaults/vaultDetails` shape into the SDK's typed model.
+ *
+ * @remarks
+ * **What:** Renames the upstream `portfolio[]` field to `leaderCommissionHistory`.
+ *
+ * **Why:** PLAN.md §I bug #24 — `portfolio[]` is misleadingly named: the rows
+ * are leader-commission samples (`time`, `followerCount`, `leaderCommission`),
+ * not vault positions. Renaming at the SDK boundary stops callers from
+ * mistaking the data for a position list.
+ *
+ * @see PLAN.md §I #24
+ */
 function mapDetails(raw: RawVaultDetails): VaultDetails {
   const { portfolio, ...rest } = raw
   return {
@@ -119,6 +132,10 @@ export class VaultsResource {
    *
    * Default sort is `followerCount desc` (empirically). `includeClosed: true`
    * surfaces closed vaults in the response.
+   *
+   * @param params - limit / offset / includeClosed filters.
+   * @returns Page of {@link VaultSummary} rows (bare envelope).
+   * @throws ValidationError when `limit > 5000`.
    */
   async list(params: VaultSummariesParams = {}): Promise<Page<VaultSummary>> {
     assertLimit(params.limit, VAULTS_LIMIT_CAP)
@@ -144,10 +161,15 @@ export class VaultsResource {
   /**
    * GET `/vaults/vaultDetails?vaultAddress=...` — single vault detail.
    *
-   * The upstream payload's `portfolio[]` field is renamed to
-   * `leaderCommissionHistory` (PLAN.md §I bug #24). A zero / unknown
-   * `vaultAddress` causes the server to 404 with `{"detail": "Vault ... not
-   * found"}`, which the transport maps to {@link NotFoundError}.
+   * @remarks
+   * Upstream `portfolio[]` is renamed to `leaderCommissionHistory` on the
+   * typed model (PLAN.md §I bug #24); see {@link mapDetails}.
+   *
+   * @param params - required `vaultAddress`, optional time window.
+   * @returns Single {@link VaultDetails} record (bare envelope).
+   * @throws ValidationError when `vaultAddress` is not a valid address.
+   * @throws NotFoundError when the vault is unknown.
+   * @see PLAN.md §I #24
    */
   async details(params: VaultDetailsParams): Promise<Single<VaultDetails>> {
     assertAddress(params.vaultAddress, 'vaultAddress')
@@ -163,6 +185,11 @@ export class VaultsResource {
    * GET `/vaults/dailySnapshots?vaultAddress=...` — one snapshot per UTC day.
    * Time-window paginated (offset is not supported by the server); use
    * {@link iterateDailySnapshots} to walk the full history.
+   *
+   * @param params - required `vaultAddress`, optional time window / limit.
+   * @returns Page of {@link VaultDailySnapshot} rows (bare envelope).
+   * @throws ValidationError when `vaultAddress` invalid or `limit > 5000`.
+   * @throws NotFoundError when the vault is unknown.
    */
   async dailySnapshots(params: VaultSnapshotsParams): Promise<Page<VaultDailySnapshot>> {
     assertAddress(params.vaultAddress, 'vaultAddress')
@@ -191,6 +218,11 @@ export class VaultsResource {
   /**
    * GET `/vaults/equitySnapshots?vaultAddress=...` — higher-frequency raw
    * series (~hourly) without the `day` bucket field. Time-window paginated.
+   *
+   * @param params - required `vaultAddress`, optional time window / limit.
+   * @returns Page of {@link VaultEquitySnapshot} rows (bare envelope).
+   * @throws ValidationError when `vaultAddress` invalid or `limit > 5000`.
+   * @throws NotFoundError when the vault is unknown.
    */
   async equitySnapshots(params: VaultSnapshotsParams): Promise<Page<VaultEquitySnapshot>> {
     assertAddress(params.vaultAddress, 'vaultAddress')
@@ -216,11 +248,21 @@ export class VaultsResource {
   /**
    * GET `/vaults/vaultLedger?vaultAddress=...` — deposit / withdraw history.
    *
-   * The wire payload has no `kind` field; the SDK synthesizes one per
-   * PLAN.md §I bug #25: `kind: 'deposit'` when `userTo` equals the requested
-   * `vaultAddress` (case-insensitive), else `'withdraw'`.
+   * @remarks
+   * **What:** Synthesizes the `kind: 'deposit' | 'withdraw'` field client-side.
+   *
+   * **Why:** PLAN.md §I bug #25 — the upstream wire payload has no `kind`
+   * field; callers would otherwise need to re-implement the
+   * `userTo === vaultAddress` (case-insensitive) check for every row. The SDK
+   * does it once at the boundary so the typed model is self-describing.
    *
    * Time-window paginated — use {@link iterateLedger} for the full history.
+   *
+   * @param params - required `vaultAddress`, optional `user` / time window / limit.
+   * @returns Page of {@link VaultLedgerTx} rows with synthesized `kind` (bare envelope).
+   * @throws ValidationError when `vaultAddress` / `user` invalid or `limit > 5000`.
+   * @throws NotFoundError when the vault is unknown.
+   * @see PLAN.md §I #25
    */
   async ledger(params: VaultLedgerParams): Promise<Page<VaultLedgerTx>> {
     assertAddress(params.vaultAddress, 'vaultAddress')
@@ -257,6 +299,11 @@ export class VaultsResource {
    * Empty for every tested user during exploration (batch-7); the
    * {@link UserVaultEquity} shape is a placeholder derived from swagger and
    * may drift once a known HLP follower address is sampled.
+   *
+   * @param params - required `user` address.
+   * @returns Page of {@link UserVaultEquity} rows (bare envelope, currently empty).
+   * @throws ValidationError when `user` is not a valid address.
+   * @see PLAN.md §I #14
    */
   async userVaultEquities(params: UserVaultEquitiesParams): Promise<Page<UserVaultEquity>> {
     assertAddress(params.user, 'user')

@@ -53,16 +53,28 @@ function assertOptionalPositiveInt(value: number | undefined, paramName: string)
  *
  * All endpoints return `APIResponse<T>`. `*-stats` endpoints expose a single
  * aggregate snapshot (no pagination); chart and leaderboard endpoints return
- * the full list in one call (no pagination).
+ * the full list in one call (also no pagination).
+ *
+ * Class-wide quirks defended (per PLAN.md §I):
+ * - bug #9: `priorityFeesGossipLeaderboard` rows ship an IPv4 in `address`,
+ *   not a wallet — the SDK renames it to `nodeIp` on the typed model.
+ *
+ * @see PLAN.md §I bug #9
  */
 export class AnalyticsResource {
   constructor(private readonly http: HttpClient) {}
 
   /**
-   * GET `/analytics/fills/stats` — fills volume / fees / unique-users snapshot
-   * for the trailing `hours` window. Defaults to 1h on the server.
+   * `GET /analytics/fills/stats` — fills volume / fees / unique-users snapshot
+   * for the trailing `hours` window.
    *
-   * `coin` is echoed back on the response when supplied.
+   * @param params - Optional snapshot scope.
+   * @param params.hours - Look-back window in hours, 1..168 (server defaults to 1 when omitted).
+   * @param params.coin - Perp symbol filter (e.g. `"ETH"`). Echoed back on the response.
+   * @returns `Single<FillsStatsData>` aggregate snapshot.
+   * @throws {ValidationError} when `hours` is not a positive integer or exceeds 168.
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure or timeout.
    */
   async fillsStats(params: FillsStatsParams = {}): Promise<Single<FillsStatsData>> {
     assertOptionalPositiveInt(params.hours, 'hours')
@@ -78,8 +90,16 @@ export class AnalyticsResource {
   }
 
   /**
-   * GET `/analytics/priority-fees/stats` — priority-gas snapshot for the
-   * trailing `hours` window. Defaults to 1h on the server.
+   * `GET /analytics/priority-fees/stats` — priority-gas snapshot for the
+   * trailing `hours` window.
+   *
+   * @param params - Optional snapshot scope.
+   * @param params.hours - Look-back window in hours, 1..168 (server defaults to 1 when omitted).
+   * @param params.coin - Perp symbol filter. Echoed back on the response.
+   * @returns `Single<PriorityFeesStatsData>` aggregate snapshot of priority-fee KPIs.
+   * @throws {ValidationError} when `hours` is not a positive integer or exceeds 168.
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure or timeout.
    */
   async priorityFeesStats(
     params: PriorityFeesStatsParams = {},
@@ -97,11 +117,18 @@ export class AnalyticsResource {
   }
 
   /**
-   * GET `/analytics/priority-fees/chart/daily` — full daily series of
-   * priority-fee aggregates. No pagination; default lookback is ~29 days.
+   * `GET /analytics/priority-fees/chart/daily` — full daily series of
+   * priority-fee aggregates.
    *
-   * `startTime` / `endTime` accept `Date | number | string` and are emitted
-   * as ISO `Z` strings (snake_case query params).
+   * @param params - Optional time-window filter.
+   * @param params.startTime - Lower bound. Accepts `Date | number | string`; emitted as ISO `Z` snake_case.
+   * @param params.endTime - Upper bound. Same shape as `startTime`.
+   * @returns `Page<PriorityFeesDailyPoint>` returned in one call (no pagination).
+   * @throws {ValidationError} if a date is unparseable.
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure or timeout.
+   * @remarks
+   * Default server lookback is ~29 days when both bounds are omitted.
    */
   async priorityFeesChartDaily(
     params: PriorityFeesChartDailyParams = {},
@@ -121,11 +148,21 @@ export class AnalyticsResource {
   }
 
   /**
-   * GET `/analytics/priority-fees/gossip/leaderboard` — top gossip nodes by
+   * `GET /analytics/priority-fees/gossip/leaderboard` — top gossip nodes by
    * priority gas. Returns the full list in one call.
    *
-   * The upstream `address` field is an IPv4 string (not a wallet) and is
-   * renamed to `nodeIp` on the typed model — see PLAN.md §I bug #9.
+   * @param params - Optional list scope.
+   * @param params.limit - Maximum number of rows, 1..200.
+   * @returns `Page<GossipLeaderboardEntry>` with rows keyed on `nodeIp` (the renamed upstream `address`).
+   * @throws {ValidationError} when `limit` is not a positive integer or exceeds 200.
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure or timeout.
+   * @see PLAN.md §I bug #9
+   * @remarks
+   * The upstream `address` field is an IPv4 string (e.g. `"1.2.3.4"`), not a
+   * wallet — calling code that joins it against `/users/*` would silently
+   * mismatch. The SDK renames it to `nodeIp` on the typed model to make the
+   * semantic explicit.
    */
   async priorityFeesGossipLeaderboard(
     params: GossipLeaderboardParams = {},
@@ -149,11 +186,21 @@ export class AnalyticsResource {
   }
 
   /**
-   * GET `/analytics/liquidations/stats` — liquidations snapshot for the
-   * trailing `days` window. Defaults to 1 day on the server.
+   * `GET /analytics/liquidations/stats` — liquidations snapshot for the
+   * trailing `days` window.
    *
-   * Known bug (PLAN.md §I #8): `top_token_liquidated` ignores the `coin`
-   * filter — the server always returns the global top token.
+   * @param params - Optional snapshot scope.
+   * @param params.days - Look-back window in days, 1..30 (server defaults to 1 when omitted).
+   * @param params.coin - Perp symbol filter. Note: `top_token_liquidated` ignores this filter (§I #8).
+   * @returns `Single<LiquidationsStatsData>` aggregate snapshot.
+   * @throws {ValidationError} when `days` is not a positive integer or exceeds 30.
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure or timeout.
+   * @see PLAN.md §I bug #8
+   * @remarks
+   * Per PLAN.md §I #8, the server-side `top_token_liquidated` field ignores
+   * the `coin` filter and always returns the global top token. The other
+   * aggregates do respect `coin`.
    */
   async liquidationsStats(
     params: LiquidationsStatsParams = {},

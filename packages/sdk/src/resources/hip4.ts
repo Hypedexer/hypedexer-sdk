@@ -62,6 +62,21 @@ type MutableParsedHip4Description = {
  * Parse the pipe-delimited `description` payload returned on
  * {@link Hip4Outcome.description} and {@link Hip4Question.description}.
  *
+ * @remarks
+ * **What:** Splits the upstream `description` mini-format (key:value pairs
+ * separated by `|`) into a typed {@link ParsedHip4Description} record,
+ * coercing numeric fields (`targetPrice`, `priceThresholds[]`) to `number`.
+ *
+ * **Why:** HIP-4 ships a domain-specific string instead of structured JSON,
+ * so every consumer would otherwise re-implement the same regex. Centralising
+ * the parser keeps the wire-shape boundary inside the SDK and gives callers
+ * a single failure mode (return `{}` for malformed input) instead of throws.
+ *
+ * **Bug context:** PLAN.md §I #12.
+ *
+ * @param raw - the raw `description` string from a HIP-4 outcome or question.
+ * @returns parsed key/value object; empty when `raw` is missing or malformed.
+ *
  * @example
  * parseHip4Description('class:priceBinary|underlying:BTC|expiry:20260512-0600|targetPrice:80813|period:1d')
  * // => { class: 'priceBinary', underlying: 'BTC', expiry: '20260512-0600', targetPrice: 80813, period: '1d' }
@@ -70,8 +85,7 @@ type MutableParsedHip4Description = {
  * parseHip4Description('class:priceBucket|underlying:BTC|expiry:20260508-0600|priceThresholds:79303,82540|period:1d')
  * // => { class: 'priceBucket', underlying: 'BTC', expiry: '20260508-0600', priceThresholds: [79303, 82540], period: '1d' }
  *
- * Returns `{}` for empty or non-string input. Unknown keys (any future
- * additions to the wire format) are silently dropped.
+ * @see PLAN.md §I #12
  */
 export function parseHip4Description(raw: string): ParsedHip4Description {
   const out: MutableParsedHip4Description = {}
@@ -230,13 +244,28 @@ function buildUserActionsQuery(p: Hip4UserActionsParams): Query {
 // /hip4/outcomes can share a sub-class while hitting distinct endpoints.
 // ---------------------------------------------------------------------------
 
+/**
+ * Backs both `/hip4/markets` and `/hip4/outcomes` (the upstream alias)
+ * with a shared offset-paginated implementation. The bound `path` decides
+ * which endpoint a given instance hits.
+ *
+ * Defends PLAN.md §I #5 / #22 — `coin` filter is silently ignored upstream
+ * on these paths; only `outcomeId` is exposed by {@link Hip4MarketsParams}.
+ */
 class Hip4MarketsResource {
   constructor(
     private readonly http: HttpClient,
     private readonly path: string,
   ) {}
 
-  /** GET `/hip4/{markets|outcomes}` — offset pagination, 1..1000 limit. */
+  /**
+   * GET `/hip4/{markets|outcomes}` — offset pagination, 1..1000 limit.
+   *
+   * @param params - outcome / class / underlying / question filters.
+   * @returns Page of {@link Hip4Outcome} rows (hip4 envelope).
+   * @throws ValidationError when `class` is unknown or `limit > 1000`.
+   * @see PLAN.md §I #5 #22
+   */
   async list(params: Hip4MarketsParams = {}): Promise<Page<Hip4Outcome>> {
     const raw = await this.http.request<unknown>({
       path: this.path,
@@ -245,7 +274,11 @@ class Hip4MarketsResource {
     return unwrap<Hip4Outcome>(raw, 'hip4')
   }
 
-  /** Async iterator — pages by `offset += limit` until a partial page is returned. */
+  /**
+   * Async iterator over `/hip4/{markets|outcomes}` — pages by
+   * `offset += limit` until a partial page is returned. Defaults `limit`
+   * to the cap (1000) when omitted.
+   */
   iterate(params: Hip4MarketsParams = {}): AsyncIterable<Hip4Outcome> {
     const limit = params.limit ?? MARKETS_LIMIT_CAP
     const initial: Record<string, unknown> = { ...params, limit }
@@ -257,10 +290,21 @@ class Hip4MarketsResource {
   }
 }
 
+/**
+ * `/hip4/questions` sub-resource. Each row's `description` is the pipe-delimited
+ * mini-format — use {@link parseHip4Description} to unwrap it.
+ */
 class Hip4QuestionsSubResource {
   constructor(private readonly http: HttpClient) {}
 
-  /** GET `/hip4/questions` — offset pagination, 1..1000 limit. */
+  /**
+   * GET `/hip4/questions` — offset pagination, 1..1000 limit.
+   *
+   * @param params - optional `questionId` / `limit` / `offset` filters.
+   * @returns Page of {@link Hip4Question} rows (hip4 envelope).
+   * @throws ValidationError when `limit > 1000`.
+   * @see PLAN.md §I #12
+   */
   async list(params: Hip4QuestionsParams = {}): Promise<Page<Hip4Question>> {
     const raw = await this.http.request<unknown>({
       path: '/hip4/questions',
@@ -281,10 +325,20 @@ class Hip4QuestionsSubResource {
   }
 }
 
+/**
+ * `/hip4/outcome-tokens` sub-resource. Unlike `/hip4/markets`, the `coin`
+ * filter here actually works (HIP-4 spot ticker namespace `@N`).
+ */
 class Hip4OutcomeTokensSubResource {
   constructor(private readonly http: HttpClient) {}
 
-  /** GET `/hip4/outcome-tokens` — offset pagination, `coin=@N` filter works. */
+  /**
+   * GET `/hip4/outcome-tokens` — offset pagination, `coin=@N` filter works.
+   *
+   * @param params - optional `outcomeId` / `coin` / `limit` / `offset` filters.
+   * @returns Page of {@link Hip4OutcomeToken} rows (hip4 envelope).
+   * @throws ValidationError when `limit > 1000`.
+   */
   async list(params: Hip4OutcomeTokensParams = {}): Promise<Page<Hip4OutcomeToken>> {
     const raw = await this.http.request<unknown>({
       path: '/hip4/outcome-tokens',
@@ -293,6 +347,7 @@ class Hip4OutcomeTokensSubResource {
     return unwrap<Hip4OutcomeToken>(raw, 'hip4')
   }
 
+  /** Async iterator over `/hip4/outcome-tokens` (offset pagination). */
   iterate(params: Hip4OutcomeTokensParams = {}): AsyncIterable<Hip4OutcomeToken> {
     const limit = params.limit ?? OUTCOME_TOKENS_LIMIT_CAP
     const initial: Record<string, unknown> = { ...params, limit }
@@ -304,6 +359,12 @@ class Hip4OutcomeTokensSubResource {
   }
 }
 
+/**
+ * `/hip4/fills` sub-resource — offset-paginated firehose of HIP-4 fills.
+ *
+ * Time window params encode as `start` / `end` (iso-bare/epoch), not the
+ * `start_time` / `end_time` shape used by other resources.
+ */
 class Hip4FillsSubResource {
   constructor(private readonly http: HttpClient) {}
 
@@ -311,6 +372,11 @@ class Hip4FillsSubResource {
    * GET `/hip4/fills` — offset pagination, 1..1000 limit. Time-window params
    * use `start` / `end` (not `start_time` / `end_time`). `user` is validated
    * client-side via `assertAddress`.
+   *
+   * @param params - user / coin / outcome / time window / limit / offset filters.
+   * @returns Page of {@link Hip4Fill} rows (hip4 envelope).
+   * @throws ValidationError when `user` is not a valid address or `limit > 1000`.
+   * @see PLAN.md §I #14
    */
   async list(params: Hip4FillsParams = {}): Promise<Page<Hip4Fill>> {
     const raw = await this.http.request<unknown>({
@@ -320,6 +386,7 @@ class Hip4FillsSubResource {
     return unwrap<Hip4Fill>(raw, 'hip4')
   }
 
+  /** Async iterator over `/hip4/fills` (offset pagination). */
   iterate(params: Hip4FillsParams = {}): AsyncIterable<Hip4Fill> {
     const limit = params.limit ?? FILLS_LIMIT_CAP
     const initial: Record<string, unknown> = { ...params, limit }
@@ -331,10 +398,17 @@ class Hip4FillsSubResource {
   }
 }
 
+/** `/hip4/fees` sub-resource — per `(user, coin, date)` daily aggregates. */
 class Hip4FeesSubResource {
   constructor(private readonly http: HttpClient) {}
 
-  /** GET `/hip4/fees` — daily fee aggregate per `(user, coin, date)`. */
+  /**
+   * GET `/hip4/fees` — daily fee aggregate per `(user, coin, date)`.
+   *
+   * @param params - user / coin / time window / limit / offset filters.
+   * @returns Page of {@link Hip4Fee} rows (hip4 envelope).
+   * @throws ValidationError when `user` is not a valid address or `limit > 1000`.
+   */
   async list(params: Hip4FeesParams = {}): Promise<Page<Hip4Fee>> {
     const raw = await this.http.request<unknown>({
       path: '/hip4/fees',
@@ -343,6 +417,7 @@ class Hip4FeesSubResource {
     return unwrap<Hip4Fee>(raw, 'hip4')
   }
 
+  /** Async iterator over `/hip4/fees` (offset pagination). */
   iterate(params: Hip4FeesParams = {}): AsyncIterable<Hip4Fee> {
     const limit = params.limit ?? FEES_LIMIT_CAP
     const initial: Record<string, unknown> = { ...params, limit }
@@ -354,12 +429,20 @@ class Hip4FeesSubResource {
   }
 }
 
+/**
+ * `/hip4/settlements` sub-resource — offset-paginated settlement events.
+ * Note: duplicates on `(outcome_id, nonce)` have been observed upstream.
+ */
 class Hip4SettlementsSubResource {
   constructor(private readonly http: HttpClient) {}
 
   /**
    * GET `/hip4/settlements` — offset pagination. Duplicates on
    * `(outcome_id, nonce)` are possible (PLAN.md §I open Q #23).
+   *
+   * @param params - outcome / time window / limit / offset filters.
+   * @returns Page of {@link Hip4Settlement} rows (hip4 envelope).
+   * @throws ValidationError when `limit > 1000`.
    */
   async list(params: Hip4SettlementsParams = {}): Promise<Page<Hip4Settlement>> {
     const raw = await this.http.request<unknown>({
@@ -369,6 +452,7 @@ class Hip4SettlementsSubResource {
     return unwrap<Hip4Settlement>(raw, 'hip4')
   }
 
+  /** Async iterator over `/hip4/settlements` (offset pagination). */
   iterate(params: Hip4SettlementsParams = {}): AsyncIterable<Hip4Settlement> {
     const limit = params.limit ?? SETTLEMENTS_LIMIT_CAP
     const initial: Record<string, unknown> = { ...params, limit }
@@ -380,12 +464,19 @@ class Hip4SettlementsSubResource {
   }
 }
 
+/**
+ * `/hip4/fee-scales` sub-resource. Currently gated upstream — every response
+ * carries `meta.status === 'not_yet_live'` with an empty `data[]`. The typed
+ * row shape ({@link Hip4FeeScale}) is intentionally a placeholder.
+ */
 class Hip4FeeScalesSubResource {
   constructor(private readonly http: HttpClient) {}
 
   /**
    * GET `/hip4/fee-scales` — none-list. Returns `status: not_yet_live` today
    * (`meta.status === 'not_yet_live'`, `data: []`). Schema TBD upstream.
+   *
+   * @returns Page of {@link Hip4FeeScale} rows (hip4 envelope, currently empty).
    */
   async list(): Promise<Page<Hip4FeeScale>> {
     const raw = await this.http.request<unknown>({ path: '/hip4/fee-scales' })
@@ -393,6 +484,10 @@ class Hip4FeeScalesSubResource {
   }
 }
 
+/**
+ * `/hip4/analytics` sub-resource — interval-bucketed time series with
+ * polymorphic row shape (`coin`-keyed vs aggregate) depending on filters.
+ */
 class Hip4AnalyticsSubResource {
   constructor(private readonly http: HttpClient) {}
 
@@ -404,6 +499,11 @@ class Hip4AnalyticsSubResource {
    * `coin` accepts either a single string or an array of strings / numeric
    * `outcome_id`s, joined with commas on the wire (e.g. `"290,291"` —
    * the server normalizes ints to `"#NNN"`).
+   *
+   * @param params - interval / coin / outcome / time-window / limit filters.
+   * @returns Page of {@link Hip4AnalyticsRow} rows (hip4 envelope).
+   * @throws ValidationError when `interval` is unknown or `limit > 2000`.
+   * @see PLAN.md §I #5
    */
   async list(params: Hip4AnalyticsParams = {}): Promise<Page<Hip4AnalyticsRow>> {
     const raw = await this.http.request<unknown>({
@@ -413,6 +513,7 @@ class Hip4AnalyticsSubResource {
     return unwrap<Hip4AnalyticsRow>(raw, 'hip4')
   }
 
+  /** Async iterator over `/hip4/analytics` (offset pagination). */
   iterate(params: Hip4AnalyticsParams = {}): AsyncIterable<Hip4AnalyticsRow> {
     const limit = params.limit ?? ANALYTICS_LIMIT_CAP
     const initial: Record<string, unknown> = { ...params, limit }
@@ -424,6 +525,12 @@ class Hip4AnalyticsSubResource {
   }
 }
 
+/**
+ * `/hip4/user-actions` sub-resource. Gated upstream — every response carries
+ * `meta.status === 'not_yet_live'`. The SDK still validates `actionType`
+ * because the server bypasses enum validation while the endpoint is gated
+ * (PLAN.md §I #5).
+ */
 class Hip4UserActionsSubResource {
   constructor(private readonly http: HttpClient) {}
 
@@ -432,6 +539,12 @@ class Hip4UserActionsSubResource {
    * `status: not_yet_live` today; the SDK still validates `actionType`
    * client-side because the server skips validation while short-circuited
    * (PLAN.md §I #5).
+   *
+   * @param params - actionType / user / limit / offset filters.
+   * @returns Page of {@link Hip4UserAction} rows (hip4 envelope, currently empty).
+   * @throws ValidationError when `actionType` is unknown, `user` is not a
+   *   valid address, or `limit > 1000`.
+   * @see PLAN.md §I #5
    */
   async list(params: Hip4UserActionsParams = {}): Promise<Page<Hip4UserAction>> {
     const raw = await this.http.request<unknown>({
@@ -441,6 +554,7 @@ class Hip4UserActionsSubResource {
     return unwrap<Hip4UserAction>(raw, 'hip4')
   }
 
+  /** Async iterator over `/hip4/user-actions` (offset pagination). */
   iterate(params: Hip4UserActionsParams = {}): AsyncIterable<Hip4UserAction> {
     const limit = params.limit ?? USER_ACTIONS_LIMIT_CAP
     const initial: Record<string, unknown> = { ...params, limit }

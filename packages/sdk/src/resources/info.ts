@@ -50,16 +50,22 @@ function buildBody(req: InfoRequest): Record<string, unknown> {
 /**
  * Pull the inner payload out of an `/info` response.
  *
- * `/info` standardises every supported type into an `APIResponse<T>` envelope
- * (batch-9 §Dispatcher behavior). Even the two types whose REST counterparts
- * return a bare value — `currentFundingRates` and `vaultList` — get wrapped
- * (PLAN.md §I bug #11). Extracting `.data` therefore gives the caller the
- * exact shape the REST endpoint returns, restoring parity.
+ * @remarks
+ * **What:** Drop the outer `APIResponse<T>` envelope from every `/info`
+ * response and return the raw `data` payload directly.
  *
- * The few defensive branches (`raw` not an object, `data` missing) only fire
+ * **Why:** PLAN.md §I bug #11 — `POST /info` always wraps responses in
+ * APIResponse, even for `currentFundingRates` and `vaultList` whose REST
+ * counterparts return bare arrays. Without this unwrap, callers using
+ * `client.info({type: 'currentFundingRates'})` would get a different shape
+ * than `client.funding.predicted()`, defeating the dispatcher parity goal.
+ *
+ * The defensive branches (`raw` not an object, `data` missing) only fire
  * on the spot 500 path — but {@link HttpClient.request} already converts
  * those to `ServerError` via `parseError`, so in practice this function only
  * sees well-formed APIResponse objects.
+ *
+ * @see PLAN.md §I #11
  */
 function extractData<T>(raw: unknown): T {
   if (isRecord(raw) && 'data' in raw) {
@@ -110,6 +116,15 @@ export class InfoResource {
    * const fills = await client.info({ type: 'fills', coin: 'BTC' })
    * //    ^? Fill[]
    * ```
+   *
+   * @param req - typed discriminated-union request keyed by `type`.
+   * @returns the inner `.data` payload, narrowed via {@link InfoResultMap}.
+   * @throws ValidationError when `accountOverview`/`tradeHistory` carry an
+   *   invalid `user` address, or when the server rejects a bad type
+   *   (mapped from `400 {error: string}`).
+   * @throws ServerError when `spotTokenList`/`spotPairList` hit the upstream
+   *   500 (PLAN.md §I #1).
+   * @see PLAN.md §I #1 #11 #14 §M
    */
   async info<R extends InfoRequest>(req: R): Promise<InfoResultMap[R['type']]> {
     const body = buildBody(req)

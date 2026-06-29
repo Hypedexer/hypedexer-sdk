@@ -113,6 +113,11 @@ export class TwapsResource {
    *
    * Client-side guards: address (when `user` filter is set), status enum,
    * order enum, `limit <= 500`.
+   *
+   * @param params - status / coin / user / order / limit / offset filters.
+   * @returns Page of {@link Twap} rows (apiResponse envelope).
+   * @throws ValidationError when an enum / address / limit fails validation.
+   * @see PLAN.md §I #5 #13 #14 #17
    */
   async list(params: TwapsListParams = {}): Promise<Page<Twap>> {
     const raw = await this.http.request<unknown>({
@@ -148,6 +153,10 @@ export class TwapsResource {
    *
    * The `byStatus` rows surface error-prefixed status strings (PLAN.md §I #13)
    * — see {@link TwapsStatusBucket.status}.
+   *
+   * @param params - optional `hours` / `coin` filters.
+   * @returns Single {@link TwapsStatsData} record (apiResponse envelope).
+   * @see PLAN.md §I #13
    */
   async stats(params: TwapsStatsParams = {}): Promise<Single<TwapsStatsData>> {
     const raw = await this.http.request<unknown>({
@@ -163,6 +172,12 @@ export class TwapsResource {
    *
    * Client-side guards: address (PLAN.md §I #14 parity), status enum,
    * order enum, `limit <= 200`.
+   *
+   * @param address - user address (URL-encoded via {@link joinPath}).
+   * @param params - status / order / limit / offset filters.
+   * @returns Page of {@link Twap} rows (apiResponse envelope).
+   * @throws ValidationError when `address` / `status` / `order` / `limit` invalid.
+   * @see PLAN.md §I #14
    */
   async user(address: string, params: TwapsUserParams = {}): Promise<Page<Twap>> {
     assertAddress(address, 'address')
@@ -191,6 +206,10 @@ export class TwapsResource {
    *
    * On an unknown id the server returns FastAPI `{detail: "TWAP <id> not found"}`
    * with HTTP 404. The shared error layer maps that to {@link NotFoundError}.
+   *
+   * @param twapId - numeric TWAP id.
+   * @returns Single {@link TwapDetail} composite payload (apiResponse envelope).
+   * @throws NotFoundError when the TWAP id is unknown.
    */
   async get(twapId: number): Promise<Single<TwapDetail>> {
     const segment = encodeSegment(String(twapId))
@@ -207,6 +226,11 @@ export class TwapsResource {
    * (TWAP fills are off-chain executions) — pass-through, not corrected.
    * This is the only `/twaps/*` endpoint where `total_count` is actually
    * populated upstream.
+   *
+   * @param twapId - numeric TWAP id.
+   * @param params - limit / offset filters.
+   * @returns Page of {@link TwapFill} rows (apiResponse envelope).
+   * @throws ValidationError when `limit > 1000`.
    */
   async fills(twapId: number, params: TwapFillsParams = {}): Promise<Page<TwapFill>> {
     const segment = encodeSegment(String(twapId))

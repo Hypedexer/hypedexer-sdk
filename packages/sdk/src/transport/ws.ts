@@ -17,13 +17,53 @@ const RECONNECT_CAP_MS = 60_000
 const STABLE_CONNECTION_MS = 60_000
 const FALLBACK_RATE_LIMIT_BACKOFF_MS = 5_000
 
+/**
+ * Construction options for {@link WSClient}.
+ *
+ * The defaults are tuned for the Hypedexer realtime API as observed in
+ * batch-9; only `apiKey` is mandatory.
+ */
 export interface WSClientOptions {
+  /** Required. Sent as `X-API-Key` on the HTTP upgrade request. */
   readonly apiKey: string
+  /**
+   * Base WebSocket URL. Trailing slashes are stripped.
+   * @defaultValue `'wss://api.hypedexer.com'`
+   */
   readonly baseUrl?: string
+  /**
+   * Transport mode. v0.1 supports `'node'` only — `'browser'` throws on
+   * construction because the upstream server fails to echo
+   * `Sec-WebSocket-Protocol`, which strict clients (browsers, the `ws`
+   * library) reject with close code 1006 (PLAN §I #19).
+   * @defaultValue `'node'`
+   */
   readonly transport?: 'node' | 'browser'
+  /**
+   * Extra request headers merged onto the upgrade (besides `X-API-Key`).
+   * Use for `Authorization: Bearer …`, custom user agents, etc.
+   */
   readonly headers?: Record<string, string>
+  /**
+   * Whether the client auto-reconnects on transient closures with
+   * exponential backoff (1 s → 60 s, reset after a stable >60 s open).
+   * 4xxx close codes and 4xx upgrade failures stop the loop regardless.
+   * @defaultValue `true`
+   */
   readonly autoReconnect?: boolean
+  /**
+   * Interval between WS-level pings (`ws.ping()`) used as an app-layer
+   * heartbeat. Cloudflare idle-disconnects the upstream at ~100 s, so the
+   * default keeps us well under that. Set to `0` to disable.
+   * @defaultValue `25_000`
+   */
   readonly heartbeatMs?: number
+  /**
+   * Per-request timeout (subscribe / unsubscribe / listSubscriptions / welcome
+   * frame). The welcome timer uses `4 × requestTimeoutMs` internally to
+   * tolerate slow upstreams without hanging connect().
+   * @defaultValue `5_000`
+   */
   readonly requestTimeoutMs?: number
 }
 
@@ -117,17 +157,47 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * Node-first WebSocket client for the Hypedexer realtime API.
  *
- * Implements every behaviour required by PLAN §H:
- * - Header-only auth (subprotocol echo is broken upstream — batch-9).
- * - Browser construction throws explicitly (no silent 1006 traps).
- * - 25 s WS-level ping heartbeat (Cloudflare idle disconnect is 100 s).
- * - Exponential backoff reconnect 1 s → 60 s; resets after a stable >60 s open.
- * - Client-side allowlist + welcome-driven runtime augmentation (PLAN §I #18).
- * - Subscription resync on every reopen, keyed by `(type|user)`.
- * - Non-JSON outbound never sent; non-JSON inbound dropped with a warn (PLAN §I #19).
- * - 1011 close codes treated as transient (PLAN §I #20).
- * - 429 on upgrade → `RateLimitError`, respects `Retry-After`.
- * - 4xx close / upgrade → `WSAuthError`, halts the reconnect loop.
+ * v0.1 is Node-only. Browser construction throws with a clear message
+ * (PLAN §I #19) because the upstream server fails to echo
+ * `Sec-WebSocket-Protocol`, which strict clients (browsers, the `ws`
+ * library) abort with close code 1006. Header auth (`X-API-Key`) is the
+ * only working scheme today.
+ *
+ * The underlying `ws` package is declared as an **optional peer
+ * dependency** and lazy-imported on `connect()`. Bundles that don't use
+ * WebSockets can install the SDK without it; calling `connect()` without
+ * `ws` installed throws a friendly install hint.
+ *
+ * Behaviour summary (full spec: PLAN §H):
+ *
+ * - **Auth**: header-only (`X-API-Key` plus any user-supplied headers).
+ *   Subprotocol auth is intentionally not attempted — see PLAN §I #19.
+ * - **Heartbeat**: WS-level ping every 25 s (configurable). Cloudflare
+ *   idle-disconnects the upstream at ~100 s.
+ * - **Reconnect**: exponential backoff 1 s → 2 s → 4 s → 8 s → 16 s,
+ *   capped at 60 s. The attempt counter resets to 0 after the connection
+ *   stays open >60 s.
+ * - **Subscription resync**: every stored subscription, keyed by
+ *   `(type|user=…)`, is replayed before `connect()` resolves and on every
+ *   reopen.
+ * - **Allowlist**: client-side channel allowlist enforced before sending
+ *   `subscribe` frames (PLAN §I #18 — server silently accepts bogus
+ *   channels and never streams). The welcome frame's
+ *   `available_subscriptions` augments the allowlist at runtime so the
+ *   client can tolerate new server-side channels without an SDK release.
+ * - **Outbound discipline**: every frame is `JSON.stringify`'d in
+ *   {@link WSClient.connect | sendJson}. The SDK NEVER sends a raw string
+ *   (PLAN §I #19 — raw strings crash the server's Python handler).
+ *   Inbound non-JSON frames are dropped with a warn for symmetry.
+ * - **Close-code classification** (PLAN §H.3, §I #20): 1011 after a
+ *   stable open is treated as transient (graceful-close artefact);
+ *   isolated 1006 after the welcome surfaces as `WSSubprotocolError` but
+ *   still triggers a reconnect; 4xxx codes surface as `WSAuthError` and
+ *   stop the loop.
+ * - **Upgrade failures**: 429 → `RateLimitError`, honouring `Retry-After`;
+ *   other 4xx → `WSAuthError` (loop stops, terminal flag set so the
+ *   subsequent 1006 from `ws.terminate()` doesn't kick off a fresh
+ *   reconnect).
  */
 export class WSClient {
   private readonly apiKey: string
@@ -182,9 +252,30 @@ export class WSClient {
   // ---------------------------------------------------------------------------
 
   /**
-   * Open the WebSocket connection. Resolves only after the welcome frame is
-   * received AND every stored subscription has been replayed. On reconnects
-   * the same sequence runs internally but the user is not awaiting it.
+   * Open the WebSocket connection.
+   *
+   * Resolves only after:
+   * 1. the HTTP upgrade succeeds,
+   * 2. the server's `welcome` frame is received (and its
+   *    `available_subscriptions` merged into the allowlist), and
+   * 3. every previously stored subscription has been replayed.
+   *
+   * On reconnects the same sequence runs internally, but callers don't
+   * await it — they observe progress via the `'reconnect'`, `'open'`,
+   * `'error'` and `'close'` events.
+   *
+   * Clears the terminal-failure flag so the user can manually retry
+   * after a previous `WSAuthError`.
+   *
+   * @throws `Error` with install hint when the optional `ws` peer dep is
+   *   missing.
+   * @throws {@link WSAuthError} when the upgrade returns a 4xx status
+   *   (auth/permission) — see PLAN §I bug.
+   * @throws {@link RateLimitError} when the upgrade returns 429.
+   *   `Retry-After` is honoured if present; the reconnect loop then
+   *   schedules the next attempt automatically.
+   * @throws {@link WebSocketError} for welcome timeouts, transport
+   *   errors, or 5xx upgrade failures.
    */
   async connect(): Promise<void> {
     this.explicitlyClosed = false
@@ -194,8 +285,18 @@ export class WSClient {
   }
 
   /**
-   * Cleanly close the WebSocket (code 1000), clear all timers, and stop the
-   * reconnect loop. Idempotent.
+   * Cleanly close the WebSocket.
+   *
+   * Sends close code 1000 with reason `client_disconnect`, clears all
+   * timers (heartbeat, reconnect, stable-reset), stops the reconnect
+   * loop, and resolves once the socket emits `'close'` (or after a 100 ms
+   * safety timeout if the socket never fires it).
+   *
+   * Idempotent: calling it on an already-closed client is a no-op.
+   *
+   * Note: per PLAN §I #20 the server may reply with `1011 /origin`
+   * instead of `1000`; the SDK classifies that as the expected
+   * graceful-close artefact and does not surface it to the user.
    */
   async disconnect(): Promise<void> {
     this.explicitlyClosed = true
@@ -217,6 +318,26 @@ export class WSClient {
     })
   }
 
+  /**
+   * Register a typed listener for a channel push or lifecycle event.
+   *
+   * The overload set narrows the handler's payload to the right shape
+   * per event:
+   * - `'completed_trades' | 'fills_spot' | 'liquidation' | 'hip4_events' |
+   *   'recent_activity'` → {@link WSMessage} `<channel>` (the SDK
+   *   normalises wire `{type, count, data}` to `{channel, count, items}`,
+   *   PLAN §H.6).
+   * - `'error'` → `WebSocketError | RateLimitError | ValidationError`.
+   *   Listener errors are caught and warned; they never crash the WS
+   *   loop.
+   * - `'reconnect'` → `{attempt: number}`.
+   * - `'open'` → no payload (fired on every successful socket open,
+   *   including reconnects).
+   * - `'close'` → `{code?: number, reason?: string}`.
+   *
+   * @returns a disposer that removes the listener. Calling it twice is
+   *   a no-op.
+   */
   on(event: 'completed_trades', handler: WSEventHandlers['completed_trades']): () => void
   on(event: 'fills_spot', handler: WSEventHandlers['fills_spot']): () => void
   on(event: 'liquidation', handler: WSEventHandlers['liquidation']): () => void
@@ -241,6 +362,13 @@ export class WSClient {
     }
   }
 
+  /**
+   * Remove a listener previously registered with {@link WSClient.on}.
+   *
+   * Pass the exact same handler reference that was registered — the
+   * client matches by identity. Removing a handler that isn't registered
+   * is a no-op. Prefer the disposer returned by `on()` whenever possible.
+   */
   off(event: 'completed_trades', handler: WSEventHandlers['completed_trades']): void
   off(event: 'fills_spot', handler: WSEventHandlers['fills_spot']): void
   off(event: 'liquidation', handler: WSEventHandlers['liquidation']): void
@@ -258,10 +386,27 @@ export class WSClient {
   }
 
   /**
-   * Subscribe to a channel. Channel name is validated client-side against the
-   * allowlist BEFORE any frame is sent (PLAN §I #18 — server silently accepts
-   * bogus types). Resolves when the server acknowledges with
-   * `subscription_added`, or rejects on timeout.
+   * Subscribe to a channel.
+   *
+   * The channel name is validated client-side against the allowlist
+   * BEFORE any frame is sent (PLAN §I #18 — the server silently accepts
+   * bogus subscriptions and never streams). The allowlist is the union
+   * of {@link KNOWN_CHANNELS} and the `available_subscriptions` list
+   * advertised in the welcome frame.
+   *
+   * The subscription is stored in the client-side map keyed by
+   * `${type}|user=${user ?? '*'}` so it can be replayed on reconnect.
+   * Per batch-9 the server treats `(type, user)` as distinct keys, so
+   * subscribing to `completed_trades` and to `completed_trades` with a
+   * `user` filter creates two independent server-side subscriptions.
+   *
+   * Resolves when the server acknowledges with `subscription_added` for
+   * the matching `(type, user)` key.
+   *
+   * @throws {@link ValidationError} when `type` is not in the allowlist
+   *   (PLAN §I #18 defence).
+   * @throws {@link WebSocketError} when the socket is not open or the
+   *   server doesn't ack within `requestTimeoutMs`.
    */
   async subscribe(type: WSChannel, opts?: { user?: Address }): Promise<void> {
     this.assertChannel(type)
@@ -273,9 +418,22 @@ export class WSClient {
   }
 
   /**
-   * Unsubscribe from a channel. Resolves on `subscription_removed` ack or
-   * timeout. Note: per batch-9, the server keys subscriptions by `(type|user)`,
-   * so unsubscribing the global variant does NOT remove user-scoped ones.
+   * Unsubscribe from a channel.
+   *
+   * The `(type, user)` key is removed from the client-side resync map so
+   * future reconnects don't replay it, then an `unsubscribe` frame is
+   * sent. Resolves on the matching `subscription_removed` ack or
+   * rejects after `requestTimeoutMs`.
+   *
+   * Per batch-9 the server keys subscriptions by `(type|user)`, so
+   * unsubscribing the global variant does NOT remove user-scoped ones
+   * (and vice-versa). Call `unsubscribe(type, { user })` explicitly for
+   * each user filter you previously subscribed with.
+   *
+   * @throws {@link ValidationError} when `type` is not in the allowlist
+   *   (PLAN §I #18 defence).
+   * @throws {@link WebSocketError} when the socket is not open or the
+   *   server doesn't ack within `requestTimeoutMs`.
    */
   async unsubscribe(type: WSChannel, opts?: { user?: Address }): Promise<void> {
     this.assertChannel(type)
@@ -286,8 +444,16 @@ export class WSClient {
   }
 
   /**
-   * Send `list_subscriptions`; resolves with the `active_subscriptions` array
-   * from the server's reply. Times out after `requestTimeoutMs`.
+   * Request the server's view of active subscriptions for this socket.
+   *
+   * Sends a `list_subscriptions` frame and resolves with the
+   * `active_subscriptions` array returned in the `subscriptions_list`
+   * reply. Entries are formatted as `${type}` or `${type}|user=${addr}`,
+   * matching the SDK's client-side key shape so consumers can diff
+   * server vs local state directly.
+   *
+   * @throws {@link WebSocketError} when the socket is not open or the
+   *   server doesn't reply within `requestTimeoutMs`.
    */
   async listSubscriptions(): Promise<string[]> {
     this.assertOpen()

@@ -65,12 +65,35 @@ interface RawEvmBackstopFill extends Omit<EvmBackstopFill, 'is_liquidation'> {
   readonly is_liquidation: number | boolean
 }
 
+/**
+ * Coerce a wire-int `0 | 1` (or already-boolean) into a strict `boolean`.
+ *
+ * @remarks
+ * EVM rows ship boolean-shaped fields as integers (PLAN.md §F.4). The
+ * accepting-boolean branch is defensive for any future server change.
+ */
 function coerceBool(value: unknown): boolean {
   if (typeof value === 'boolean') return value
   if (typeof value === 'number') return value !== 0
   return Boolean(value)
 }
 
+/**
+ * Normalize a raw `/evm/transactions` row at the wire-shape boundary.
+ *
+ * @remarks
+ * **What:**
+ * - Coerces `success` / `is_system_tx` from wire-int `0 | 1` to `boolean`
+ *   (PLAN.md §F.4).
+ * - Synthesizes `tx_key = "<block_number>:<tx_index>"` as a stable identifier.
+ *
+ * **Why:** PLAN.md §I bug #10 — upstream `tx_hash` and `from_addr` are
+ * empty strings on every row, so callers have no usable id to chain on.
+ * `(block_number, tx_index)` uniquely identifies a transaction even when
+ * the hash is missing.
+ *
+ * @see PLAN.md §I #10 §F.4
+ */
 function normalizeTransaction(row: RawEvmTransaction): EvmTransaction {
   return {
     ...row,
@@ -80,6 +103,10 @@ function normalizeTransaction(row: RawEvmTransaction): EvmTransaction {
   }
 }
 
+/**
+ * Normalize a raw `/evm/hip3/backstop/{dex}/fills` row by coercing the
+ * wire-int `is_liquidation` (`0 | 1`) into a strict `boolean` (PLAN.md §F.4).
+ */
 function normalizeBackstopFill(row: RawEvmBackstopFill): EvmBackstopFill {
   return {
     ...row,
@@ -116,7 +143,14 @@ function applyTimeWindow(q: Query, startTime: unknown, endTime: unknown): void {
 export class EvmBlocksResource {
   constructor(private readonly http: HttpClient) {}
 
-  /** `GET /evm/blocks` — offset pagination, `limit` 1..1000. */
+  /**
+   * `GET /evm/blocks` — offset pagination, `limit` 1..1000.
+   *
+   * @param params - block / time window / limit / offset filters.
+   * @returns Page of {@link EvmBlock} rows (apiResponse envelope).
+   * @throws ValidationError when `limit > 1000`.
+   * @see PLAN.md §I #21
+   */
   async list(params: EvmBlocksParams = {}): Promise<Page<EvmBlock>> {
     assertLimit(params.limit, EVM_LIMIT_CAP)
     const query: Query = {}
@@ -143,6 +177,10 @@ export class EvmBlocksResource {
    * `GET /evm/blocks/{block_number}` — single block by number. Upstream
    * returns `404 {detail: string}` on unknown number; the transport maps that
    * to {@link NotFoundError}.
+   *
+   * @param blockNumber - the numeric block height.
+   * @returns Single {@link EvmBlock} record (apiResponse envelope).
+   * @throws NotFoundError when the block number is unknown.
    */
   async get(blockNumber: number): Promise<Single<EvmBlock>> {
     const raw = await this.http.request<unknown>({
@@ -156,6 +194,12 @@ export class EvmBlocksResource {
    * `limit` 1..1000. Returns the {@link EvmTransaction} rows for a single
    * block (same shape as the firehose `/evm/transactions`, including the
    * synthesized `tx_key` and boolean `success` / `is_system_tx`).
+   *
+   * @param blockNumber - the numeric block height.
+   * @param params - limit / offset filters.
+   * @returns Page of {@link EvmTransaction} rows (apiResponse envelope).
+   * @throws ValidationError when `limit > 1000`.
+   * @see PLAN.md §I #10 §F.4
    */
   async transactions(
     blockNumber: number,
@@ -207,7 +251,16 @@ export class EvmBlocksResource {
 export class EvmTransactionsResource {
   constructor(private readonly http: HttpClient) {}
 
-  /** `GET /evm/transactions` — offset pagination, `limit` 1..1000. */
+  /**
+   * `GET /evm/transactions` — offset pagination, `limit` 1..1000.
+   *
+   * @param params - toAddr / blockNumber / includeSystem / time window /
+   *   limit / offset filters.
+   * @returns Page of {@link EvmTransaction} rows with synthesized `tx_key`
+   *   (apiResponse envelope).
+   * @throws ValidationError when `limit > 1000`.
+   * @see PLAN.md §I #10 #21 §F.4
+   */
   async list(params: EvmTransactionsParams = {}): Promise<Page<EvmTransaction>> {
     assertLimit(params.limit, EVM_LIMIT_CAP)
     const query: Query = {}
@@ -241,7 +294,15 @@ export class EvmTransactionsResource {
 export class EvmLogsResource {
   constructor(private readonly http: HttpClient) {}
 
-  /** `GET /evm/logs` — offset pagination, `limit` 1..1000. */
+  /**
+   * `GET /evm/logs` — offset pagination, `limit` 1..1000.
+   *
+   * @param params - address / topic0 / blockNumber / time window /
+   *   limit / offset filters.
+   * @returns Page of {@link EvmLog} rows (apiResponse envelope).
+   * @throws ValidationError when `limit > 1000`.
+   * @see PLAN.md §I #21
+   */
   async list(params: EvmLogsParams = {}): Promise<Page<EvmLog>> {
     assertLimit(params.limit, EVM_LIMIT_CAP)
     const query: Query = {}
@@ -279,7 +340,15 @@ export class EvmLogsResource {
 export class EvmTransfersResource {
   constructor(private readonly http: HttpClient) {}
 
-  /** `GET /evm/ledger/transfers` — offset pagination, `limit` 1..1000. */
+  /**
+   * `GET /evm/ledger/transfers` — offset pagination, `limit` 1..1000.
+   *
+   * @param params - actionType / token / user / time window / limit / offset filters.
+   * @returns Page of {@link EvmLedgerTransfer} rows (apiResponse envelope).
+   * @throws ValidationError when `actionType` is unknown, `user` invalid,
+   *   or `limit > 1000`.
+   * @see PLAN.md §I #5 #21
+   */
   async list(params: EvmLedgerTransfersParams = {}): Promise<Page<EvmLedgerTransfer>> {
     assertOptionalEnum(params.actionType, EVM_LEDGER_ACTION_TYPES, 'actionType')
     if (params.user !== undefined) assertAddress(params.user, 'user')
@@ -324,6 +393,12 @@ export class EvmBridgeEventsResource {
    *
    * Defends PLAN.md §I bug #5: `event_type` is silently fall-back upstream;
    * SDK rejects unknown values via {@link EVM_BRIDGE_EVENT_TYPES}.
+   *
+   * @param params - eventType / user / time window / limit / offset filters.
+   * @returns Page of {@link EvmBridgeEvent} rows (apiResponse envelope).
+   * @throws ValidationError when `eventType` is unknown, `user` invalid,
+   *   or `limit > 1000`.
+   * @see PLAN.md §I #5 #21
    */
   async list(params: EvmBridgeEventsParams = {}): Promise<Page<EvmBridgeEvent>> {
     assertOptionalEnum(params.eventType, EVM_BRIDGE_EVENT_TYPES, 'eventType')
@@ -372,7 +447,11 @@ export class EvmBridgeResource {
 export class EvmStatsResource {
   constructor(private readonly http: HttpClient) {}
 
-  /** `GET /evm/stats` — single aggregate stats record. */
+  /**
+   * `GET /evm/stats` — single aggregate stats record.
+   *
+   * @returns Single {@link EvmStats} record (apiResponse envelope).
+   */
   async get(): Promise<Single<EvmStats>> {
     const raw = await this.http.request<unknown>({ path: '/evm/stats' })
     return unwrapSingle<EvmStats>(raw, 'apiResponse')
@@ -381,6 +460,10 @@ export class EvmStatsResource {
   /**
    * `GET /evm/stats/daily` — none-list of per-day stats. `days` is capped at
    * 365 client-side (server 422 above that). Default 30 server-side.
+   *
+   * @param params - optional `days` window (1..365).
+   * @returns Page of {@link EvmDailyStat} rows (apiResponse envelope, none-list).
+   * @throws ValidationError when `days > 365`.
    */
   async daily(params: EvmStatsDailyParams = {}): Promise<Page<EvmDailyStat>> {
     assertLimit(params.days, EVM_STATS_DAILY_DAYS_CAP, 'days')
@@ -402,7 +485,14 @@ export class EvmUserLedgerEventsResource {
     private readonly address: string,
   ) {}
 
-  /** `GET /evm/user/{address}/ledger-events` — offset pagination, `limit` 1..1000. */
+  /**
+   * `GET /evm/user/{address}/ledger-events` — offset pagination, `limit` 1..1000.
+   *
+   * @param params - eventType / token / time window / limit / offset filters.
+   * @returns Page of {@link EvmUserLedgerEvent} rows (apiResponse envelope).
+   * @throws ValidationError when `eventType` is unknown or `limit > 1000`.
+   * @see PLAN.md §I #5 #21
+   */
   async list(params: EvmUserLedgerEventsParams = {}): Promise<Page<EvmUserLedgerEvent>> {
     assertOptionalEnum(params.eventType, EVM_USER_LEDGER_EVENT_TYPES, 'eventType')
     assertLimit(params.limit, EVM_LIMIT_CAP)
@@ -464,6 +554,8 @@ export class EvmUserResource {
    *
    * Returned as a {@link Page} (none-list family — no pagination), one row per
    * action_type seen for this user.
+   *
+   * @returns Page of {@link EvmUserLedgerSummaryRow} rows (apiResponse envelope).
    */
   async overview(): Promise<Page<EvmUserLedgerSummaryRow>> {
     const raw = await this.http.request<unknown>({
@@ -485,7 +577,11 @@ export class EvmUserResource {
 export class EvmHip3BackstopHealthResource {
   constructor(private readonly http: HttpClient) {}
 
-  /** `GET /evm/hip3/backstop/health` — none-list, no pagination. */
+  /**
+   * `GET /evm/hip3/backstop/health` — none-list, no pagination.
+   *
+   * @returns Page of {@link EvmBackstopHealth} rows (apiResponse envelope, none-list).
+   */
   async list(): Promise<Page<EvmBackstopHealth>> {
     const raw = await this.http.request<unknown>({
       path: '/evm/hip3/backstop/health',
@@ -498,6 +594,10 @@ export class EvmHip3BackstopHealthResource {
    *
    * Upstream returns `404 {detail: string}` for unknown dex; the transport
    * maps that to {@link NotFoundError}.
+   *
+   * @param dex - the dex id (URL-encoded via {@link joinPath}).
+   * @returns Single {@link EvmBackstopHealth} record (apiResponse envelope).
+   * @throws NotFoundError when the dex is unknown.
    */
   async get(dex: string): Promise<Single<EvmBackstopHealth>> {
     const raw = await this.http.request<unknown>({
@@ -514,7 +614,13 @@ export class EvmHip3BackstopHealthResource {
 export class EvmHip3BackstopTransfersResource {
   constructor(private readonly http: HttpClient) {}
 
-  /** `GET /evm/hip3/backstop/transfers` — offset pagination, `limit` 1..1000. */
+  /**
+   * `GET /evm/hip3/backstop/transfers` — offset pagination, `limit` 1..1000.
+   *
+   * @param params - dex / isDeposit / limit / offset filters.
+   * @returns Page of {@link EvmBackstopTransfer} rows (apiResponse envelope).
+   * @throws ValidationError when `limit > 1000`.
+   */
   async list(params: EvmBackstopTransfersParams = {}): Promise<Page<EvmBackstopTransfer>> {
     assertLimit(params.limit, EVM_LIMIT_CAP)
     const query: Query = {}
@@ -539,7 +645,12 @@ export class EvmHip3BackstopTransfersResource {
     )
   }
 
-  /** `GET /evm/hip3/backstop/transfers-summary` — none-list, no pagination. */
+  /**
+   * `GET /evm/hip3/backstop/transfers-summary` — none-list, no pagination.
+   *
+   * @returns Page of {@link EvmBackstopTransfersSummary} rows
+   *   (apiResponse envelope, none-list).
+   */
   async summary(): Promise<Page<EvmBackstopTransfersSummary>> {
     const raw = await this.http.request<unknown>({
       path: '/evm/hip3/backstop/transfers-summary',
@@ -559,7 +670,15 @@ export class EvmHip3BackstopDexFillsResource {
     private readonly dex: string,
   ) {}
 
-  /** `GET /evm/hip3/backstop/{dex}/fills` — offset pagination, `limit` 1..1000. */
+  /**
+   * `GET /evm/hip3/backstop/{dex}/fills` — offset pagination, `limit` 1..1000.
+   *
+   * @param params - coin / time window / limit / offset filters.
+   * @returns Page of {@link EvmBackstopFill} rows with `is_liquidation`
+   *   coerced to boolean (apiResponse envelope).
+   * @throws ValidationError when `limit > 1000`.
+   * @see PLAN.md §F.4 §I #21
+   */
   async list(params: EvmBackstopFillsParams = {}): Promise<Page<EvmBackstopFill>> {
     assertLimit(params.limit, EVM_LIMIT_CAP)
     const query: Query = {}

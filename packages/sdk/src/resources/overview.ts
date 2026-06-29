@@ -23,10 +23,15 @@ import { TOP_TRADER_SORTS } from '../types/overview.js'
  * and are non-paginated (either `none` = single record or `none-list` = full
  * list returned in one call). See ENDPOINTS.md §"Overview (batch-2)".
  *
- * Defended bugs (per PLAN.md §I):
- * - #5: `top-traders.sort` silently accepts bogus values. SDK validates client-side.
- * - #14: `coin-distribution` returns 200 + empty for bad addresses (no 422). SDK
- *   validates the eth-address pattern client-side before sending.
+ * Class-wide quirks defended in this resource (per PLAN.md §I):
+ * - bug #5: `top-traders.sort` silently accepts bogus values and falls back to
+ *   `pnl_pos`. SDK validates `sort` client-side against {@link TOP_TRADER_SORTS}.
+ * - bug #14: `coin-distribution` returns 200 + empty for bad addresses (no 422).
+ *   SDK validates the eth-address pattern client-side before sending; same for
+ *   {@link OverviewResource.dailyVolume10d} when scoped to a user.
+ *
+ * @see PLAN.md §I bug #5
+ * @see PLAN.md §I bug #14
  */
 export class OverviewResource {
   constructor(private readonly http: HttpClient) {}
@@ -35,8 +40,18 @@ export class OverviewResource {
    * `GET /overview/top-traders-24h` — top traders of the last 24h, ordered by
    * the requested `sort` (default `pnl_pos`).
    *
-   * **§I #5:** server silently falls back to `pnl_pos` on unknown `sort`. This
-   * SDK throws {@link ValidationError} client-side instead.
+   * @param params - Optional list scope.
+   * @param params.sort - One of `'pnl_pos' | 'pnl_neg' | 'volume' | 'trades'`. Validated client-side (§I #5).
+   * @param params.limit - Maximum number of rows (server default is 20 when omitted).
+   * @returns `Page<TopTraderEntry>` — full list in one call (no pagination).
+   * @throws {ValidationError} when `sort` is not in {@link TOP_TRADER_SORTS}.
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure or timeout.
+   * @see PLAN.md §I bug #5
+   * @remarks
+   * The server silently falls back to `pnl_pos` on unknown `sort`. The SDK
+   * throws {@link ValidationError} client-side instead, so a typo never yields
+   * a different ordering than requested.
    */
   async topTraders24h(params: TopTradersParams = {}): Promise<Page<TopTraderEntry>> {
     if (params.sort !== undefined) assertEnum(params.sort, TOP_TRADER_SORTS, 'sort')
@@ -50,7 +65,13 @@ export class OverviewResource {
     return unwrap<TopTraderEntry>(raw, 'apiResponse')
   }
 
-  /** `GET /overview/total-fees-24h` — split of spot vs perp fees for the last 24h. */
+  /**
+   * `GET /overview/total-fees-24h` — split of spot vs perp fees for the last 24h.
+   *
+   * @returns `Single<TotalFees24h>` with `feesSpot`, `feesPerpUsdc`, and `totalFees`.
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure or timeout.
+   */
   async totalFees24h(): Promise<Single<TotalFees24h>> {
     const raw = await this.http.request<APIResponse<TotalFees24h>>({
       path: '/overview/total-fees-24h',
@@ -60,7 +81,14 @@ export class OverviewResource {
 
   /**
    * `GET /overview/active-traders-24h` — unique active addresses in the last
-   * 24h with prior-day variation. **Slow upstream** (~7.5s); callers should cache.
+   * 24h with prior-day variation.
+   *
+   * @returns `Single<ActiveTraders24h>` — a `KpiCard<number>` with `value` and `variationPct` (may be `null`).
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure or timeout.
+   * @remarks
+   * Slow upstream (~7.5s observed). Callers should cache aggressively rather
+   * than hit this on every page load.
    */
   async activeTraders24h(): Promise<Single<ActiveTraders24h>> {
     const raw = await this.http.request<APIResponse<ActiveTraders24h>>({
@@ -71,7 +99,13 @@ export class OverviewResource {
 
   /**
    * `GET /overview/trading-volume-24h` — total USD volume over the last 24h
-   * with prior-day variation. Slow upstream (~3.2s); cache aggressively.
+   * with prior-day variation.
+   *
+   * @returns `Single<TradingVolume24h>` — a `KpiCard<number>` with `value` (USD) and `variationPct` (may be `null`).
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure or timeout.
+   * @remarks
+   * Slow upstream (~3.2s observed). Cache aggressively.
    */
   async tradingVolume24h(): Promise<Single<TradingVolume24h>> {
     const raw = await this.http.request<APIResponse<TradingVolume24h>>({
@@ -82,7 +116,13 @@ export class OverviewResource {
 
   /**
    * `GET /overview/total-fills-24h` — total fill count over the last 24h with
-   * prior-day variation. Slow upstream (~2.5s); cache aggressively.
+   * prior-day variation.
+   *
+   * @returns `Single<TotalFills24h>` — a `KpiCard<number>` with `value` (fill count) and `variationPct` (may be `null`).
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure or timeout.
+   * @remarks
+   * Slow upstream (~2.5s observed). Cache aggressively.
    */
   async totalFills24h(): Promise<Single<TotalFills24h>> {
     const raw = await this.http.request<APIResponse<TotalFills24h>>({
@@ -92,9 +132,15 @@ export class OverviewResource {
   }
 
   /**
-   * `GET /overview/daily-volume-10d` — 10-day daily-volume series. Pass
-   * `params.user` to scope the series to a single trader. Series is pre-sorted
-   * oldest → newest.
+   * `GET /overview/daily-volume-10d` — 10-day daily-volume series.
+   *
+   * @param params - Optional list scope.
+   * @param params.user - Hyperliquid wallet address (0x-prefixed, 40 hex chars). Validated client-side (§I #14). Omit for global series.
+   * @returns `Page<DailyVolumePoint>` pre-sorted oldest → newest; full list in one call (no pagination).
+   * @throws {ValidationError} when `user` is set but is not a valid eth-address.
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure or timeout.
+   * @see PLAN.md §I bug #14
    */
   async dailyVolume10d(params: DailyVolumeParams = {}): Promise<Page<DailyVolumePoint>> {
     if (params.user !== undefined) assertAddress(params.user, 'user')
@@ -106,8 +152,14 @@ export class OverviewResource {
   }
 
   /**
-   * `GET /overview/daily-pnl-10d` — global 10-day PnL series broken down by
-   * coin. No `user` filter is accepted by the server.
+   * `GET /overview/daily-pnl-10d` — global 10-day PnL series broken down by coin.
+   *
+   * @returns `Page<DailyPnlEntry>` rows of `(date, coin, pnl)` returned in one call (no pagination).
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure or timeout.
+   * @remarks
+   * The server does not accept a `user` filter on this endpoint; rows are
+   * always the global per-coin breakdown.
    */
   async dailyPnl10d(): Promise<Page<DailyPnlEntry>> {
     const raw = await this.http.request<APIResponse<DailyPnlEntry[]>>({
@@ -118,11 +170,23 @@ export class OverviewResource {
 
   /**
    * `GET /overview/coin-distribution` — per-coin volume + fill count for a
-   * given user over the lookback window.
+   * given user over the server's lookback window.
    *
-   * **§I #14:** server returns 200 + empty data for malformed addresses (no
-   * 422), unlike `/fills/user/{addr}` which 422s. The SDK throws
-   * {@link ValidationError} client-side before sending.
+   * @param params - Required scope.
+   * @param params.user - Hyperliquid wallet address (0x-prefixed, 40 hex chars). Validated client-side (§I #14).
+   * @returns `Page<CoinDistributionEntry>` rows of `(coin, volume, fills)`; full list in one call.
+   * @throws {ValidationError} when `user` is not a valid eth-address.
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure or timeout.
+   * @see PLAN.md §I bug #8
+   * @see PLAN.md §I bug #14
+   * @remarks
+   * Unlike `/fills/user/{addr}` (which 422s on bad addresses), the server
+   * returns 200 + empty data for malformed inputs. The SDK throws
+   * {@link ValidationError} client-side before sending so the failure mode is
+   * symmetric with the rest of the address-scoped surface. Bug #8 also applies
+   * to a sibling field (`top_token_liquidated`) on a related endpoint and does
+   * not affect this method directly.
    */
   async coinDistribution(params: CoinDistributionParams): Promise<Page<CoinDistributionEntry>> {
     assertAddress(params.user, 'user')

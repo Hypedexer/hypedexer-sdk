@@ -57,6 +57,10 @@ type Query = Record<string, string | number | boolean | null | undefined>
  * params (not `start_time`/`end_time`). Values are encoded as `YYYY-MM-DD`
  * via the SDK's `encodeTime(..., 'isoBare')` helper — the server also
  * accepts epoch-ms here but bare-date is the canonical SDK form.
+ *
+ * @param q - mutable query record the encoded keys are written into.
+ * @param startTime - user-supplied {@link TimeInput} (Date | number | string).
+ * @param endTime - user-supplied {@link TimeInput} (Date | number | string).
  */
 function applyTimeWindow(q: Query, startTime: unknown, endTime: unknown): void {
   if (startTime !== undefined) {
@@ -79,7 +83,13 @@ function applyTimeWindow(q: Query, startTime: unknown, endTime: unknown): void {
 export class Hip3DexsResource {
   constructor(private readonly http: HttpClient) {}
 
-  /** `GET /hip3/dexs` — offset pagination, `limit` 1..500. */
+  /**
+   * `GET /hip3/dexs` — offset pagination, `limit` 1..500.
+   *
+   * @param params - offset/limit pagination params.
+   * @returns Page of {@link DexRegistry} rows (bare envelope).
+   * @throws ValidationError when `limit` is outside `[1, 500]`.
+   */
   async list(params: Hip3DexsParams = {}): Promise<Page<DexRegistry>> {
     assertLimit(params.limit, DEXS_LIMIT_CAP)
     const query: Query = {}
@@ -104,6 +114,10 @@ export class Hip3DexsResource {
    *
    * Upstream returns `404 {detail: string}` when `dex_id` is unknown; the
    * transport maps that to {@link NotFoundError}.
+   *
+   * @param dexId - the dex id (URL-encoded via {@link joinPath}).
+   * @returns Single {@link DexRegistry} record.
+   * @throws NotFoundError when the dex id is unknown.
    */
   async get(dexId: string): Promise<Single<DexRegistry>> {
     const raw = await this.http.request<unknown>({
@@ -126,7 +140,14 @@ export class Hip3DexsResource {
 export class Hip3AssetsResource {
   constructor(private readonly http: HttpClient) {}
 
-  /** `GET /hip3/assets` — offset pagination, `limit` 1..1000. */
+  /**
+   * `GET /hip3/assets` — offset pagination, `limit` 1..1000.
+   *
+   * @param params - dex/search/offset/limit filters.
+   * @returns Page of {@link AssetConfig} rows (bare envelope).
+   * @throws ValidationError when `limit` is outside `[1, 1000]`.
+   * @see PLAN.md §I #6 — `asset_id` is always 0 on every row.
+   */
   async list(params: Hip3AssetsParams = {}): Promise<Page<AssetConfig>> {
     assertLimit(params.limit, ASSETS_LIMIT_CAP)
     const query: Query = {}
@@ -153,6 +174,10 @@ export class Hip3AssetsResource {
    *
    * Upstream returns `404 {detail: string}` on unknown ticker; transport
    * maps that to {@link NotFoundError}.
+   *
+   * @param ticker - the prefixed `<dex>:<TICKER>` form (e.g. `"xyz:CL"`).
+   * @returns Single {@link AssetConfig} record.
+   * @throws NotFoundError when the ticker is unknown.
    */
   async get(ticker: string): Promise<Single<AssetConfig>> {
     const raw = await this.http.request<unknown>({
@@ -213,7 +238,14 @@ export class Hip3AuctionsResource {
     this.history = new Hip3AuctionsHistoryResource(http)
   }
 
-  /** `GET /hip3/auctions` — offset pagination, `limit` 1..200. */
+  /**
+   * `GET /hip3/auctions` — offset pagination, `limit` 1..200.
+   *
+   * @param params - status/offset/limit filters.
+   * @returns Page of {@link Auction} rows (bare envelope).
+   * @throws ValidationError when `status` is not in
+   *   {@link AUCTION_STATUSES} or `limit` is outside `[1, 200]`.
+   */
   async list(params: Hip3AuctionsParams = {}): Promise<Page<Auction>> {
     assertOptionalEnum(params.status, AUCTION_STATUSES, 'status')
     assertLimit(params.limit, AUCTIONS_LIMIT_CAP)
@@ -495,6 +527,12 @@ export class Hip3Resource {
    *
    * **PLAN.md §I bug #5**: server silently falls back to `volume` on
    * unknown `by`. SDK validates client-side via {@link HIP3_LEADERBOARD_BY}.
+   *
+   * @param params - required `by` discriminator + optional dex/limit filters.
+   * @returns Page of {@link Hip3LeaderboardEntry} rows (bare envelope).
+   * @throws ValidationError when `by` is not in {@link HIP3_LEADERBOARD_BY}
+   *   or `limit` is outside `[1, 200]`.
+   * @see PLAN.md §I #5
    */
   async leaderboard(params: Hip3LeaderboardParams): Promise<Page<Hip3LeaderboardEntry>> {
     assertEnum(params.by, HIP3_LEADERBOARD_BY, 'by')

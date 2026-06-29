@@ -76,23 +76,56 @@ function validateSummaryParams(params: CompletedTradesSummaryParams): void {
 }
 
 /**
- * Resource client for the `/completed-trades/*` endpoints (batch-3).
+ * `/completed-trades/*` resource. Covers the full list of completed perp
+ * trades (open+close aggregated), the aggregate summary, and per-trade fills.
  *
- * Known issues defended by this resource:
- * - #2: `limit` has no server cap → hard-capped at 100 via assertLimit.
- * - #3: `/{trade_id}/fills` rows ship shifted `feeUsdc`/`typeTrade` keys; the
- *   TradeFill type omits those fields.
- * - #5: `sort_by` silent fallback → assertEnum on `sortBy`.
- * - #15: bogus trade id returns 200 with empty fills (no 404). Documented.
+ * Class-wide quirks defended in this resource (per PLAN.md §I):
+ * - bug #2: server has no `limit` cap on `/completed-trades/` (a 70 MB
+ *   response was observed at `limit=99999`). The SDK hard-caps `limit` at 100
+ *   client-side and rejects larger values with {@link ValidationError}.
+ * - bug #3: `/{trade_id}/fills` rows ship shifted `feeUsdc`/`typeTrade` keys
+ *   on the wire. The {@link TradeFill} type intentionally omits both fields
+ *   until the upstream serializer is fixed.
+ * - bug #5: `sort_by` (and related enums) silently fall back on bogus values.
+ *   The SDK validates `sortBy`, `sortDir`, and `direction` client-side.
+ * - bug #14: address-scoped queries fall back to empty when `user` is invalid.
+ *   The SDK validates the eth-address pattern client-side.
+ * - bug #15: a bogus `tradeId` on `/{trade_id}/fills` returns 200 with an
+ *   empty `data` array (no 404). The SDK does NOT synthesize a NotFoundError.
+ *
+ * @see PLAN.md §I bug #2
+ * @see PLAN.md §I bug #3
+ * @see PLAN.md §I bug #5
+ * @see PLAN.md §I bug #14
+ * @see PLAN.md §I bug #15
  */
 export class CompletedTradesResource {
   constructor(private readonly http: HttpClient) {}
 
   /**
-   * `GET /completed-trades/` — offset-paginated list of completed perp trades.
+   * `GET /completed-trades/` — offset-paginated list of completed perp trades
+   * (each row = an open+close fill aggregate).
    *
-   * @throws ValidationError when `limit > 100`, `sortBy`/`sortDir`/`direction` is
-   *   not in the allowed enum, or `user` is not a valid 0x address.
+   * @param params - Optional filters and paging controls.
+   * @param params.user - Hyperliquid wallet address (0x-prefixed, 40 hex chars). Validated client-side (§I #14).
+   * @param params.coin - Perp symbol (e.g. `"BTC"`).
+   * @param params.direction - `'long' | 'short'`. Validated client-side (§I #5).
+   * @param params.startTime - Lower time bound. Accepts `Date | number | string`; emitted as ISO `Z` snake_case.
+   * @param params.endTime - Upper time bound. Same shape as `startTime`.
+   * @param params.minPnl - Lower bound on realized PnL (USD).
+   * @param params.maxPnl - Upper bound on realized PnL (USD).
+   * @param params.offset - Zero-based offset for paging.
+   * @param params.limit - Page size 1..100 (SDK hard-cap, §I #2). Server has no cap.
+   * @param params.doCount - Pass-through flag; currently has no observable effect upstream.
+   * @param params.sortBy - One of `'pnl' | 'time' | 'volume' | 'duration'`. Validated client-side (§I #5).
+   * @param params.sortDir - `'asc' | 'desc'`. Validated client-side.
+   * @returns `Page<Trade>` with `meta` for offset/total bookkeeping.
+   * @throws {ValidationError} when `limit > 100` (§I #2), when `sortBy`/`sortDir`/`direction` is not in the allowed enum, or when `user` is set and is not a valid eth-address.
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure or timeout.
+   * @see PLAN.md §I bug #2
+   * @see PLAN.md §I bug #5
+   * @see PLAN.md §I bug #14
    */
   async list(params: CompletedTradesListParams = {}): Promise<Page<Trade>> {
     validateListParams(params)
@@ -104,11 +137,19 @@ export class CompletedTradesResource {
   }
 
   /**
-   * Async iterator over `/completed-trades/` rows. Pages by `offset += limit`
-   * until a partial page is returned. Same validation as {@link list}.
+   * Async iterator over `/completed-trades/` — pages by `offset += limit`
+   * until a partial page is returned. Same validation as
+   * {@link CompletedTradesResource.list}.
    *
-   * Defaults `limit` to 100 (the SDK cap) so each request fetches the maximum
-   * allowed batch size.
+   * @param params - Same shape as {@link CompletedTradesResource.list}; `offset` is managed by the iterator.
+   * @returns `AsyncIterable<Trade>` that yields rows one at a time across pages.
+   * @throws {ValidationError} on bad enum/limit/address (raised eagerly via `validateListParams`).
+   * @see PLAN.md §I bug #2
+   * @see PLAN.md §I bug #5
+   * @see PLAN.md §I bug #14
+   * @remarks
+   * Defaults `limit` to 100 (the SDK cap, §I #2) so each request fetches the
+   * maximum allowed batch size and minimizes the number of round-trips.
    */
   iterate(params: CompletedTradesListParams = {}): AsyncIterable<Trade> {
     validateListParams(params)
@@ -122,10 +163,25 @@ export class CompletedTradesResource {
   }
 
   /**
-   * `GET /completed-trades/summary` — aggregated stats for the queried set.
+   * `GET /completed-trades/summary` — aggregated stats across the queried set
+   * (total trades, total PnL, average PnL %, direction breakdown, top coins).
    *
-   * Note: `execution_time_ms` on the envelope is always null for this endpoint
-   * (PLAN.md §I, batch-3 docs).
+   * @param params - Optional filters; same time/scope shape as {@link CompletedTradesResource.list}.
+   * @param params.user - Hyperliquid wallet address (0x-prefixed, 40 hex chars). Validated client-side (§I #14).
+   * @param params.coin - Perp symbol filter.
+   * @param params.direction - `'long' | 'short'`. Validated client-side (§I #5).
+   * @param params.startTime - Lower time bound. Accepts `Date | number | string`; emitted as ISO `Z` snake_case.
+   * @param params.endTime - Upper time bound. Same shape as `startTime`.
+   * @returns `Single<TradesSummary>` aggregated snapshot.
+   * @throws {ValidationError} when `direction` is not in the enum or `user` is not a valid eth-address.
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure or timeout.
+   * @see PLAN.md §I bug #5
+   * @see PLAN.md §I bug #14
+   * @remarks
+   * The envelope `execution_time_ms` is always `null` for this endpoint (per
+   * batch-3 docs). `avgDurationS` on the payload is also currently inflated
+   * upstream — see {@link TradesSummary.avgDurationS}.
    */
   async summary(params: CompletedTradesSummaryParams = {}): Promise<Single<TradesSummary>> {
     validateSummaryParams(params)
@@ -139,15 +195,24 @@ export class CompletedTradesResource {
   /**
    * `GET /completed-trades/{trade_id}/fills` — fills attached to a completed trade.
    *
-   * The `tradeId` segment can contain `:` (HIP-3 coins). The SDK URL-encodes
-   * `:` as `%3A` via {@link encodeSegment} to avoid intermediate proxies
-   * mis-parsing it as a scheme/host delimiter.
+   * @param tradeId - Composite id of the trade (e.g. `"trade_BTC_0xabcdef01"`).
+   *   May contain `:` when the coin is HIP-3 (e.g. `"trade_xyz:EWY_0xabcdef01"`);
+   *   the SDK URL-encodes `:` as `%3A` via {@link encodeSegment} so intermediate
+   *   proxies do not mis-parse it as a scheme/host delimiter.
+   * @returns `Page<TradeFill>` rows of the fills attached to the trade.
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure or timeout.
+   * @see PLAN.md §I bug #3
+   * @see PLAN.md §I bug #15
+   * @remarks
+   * Per §I #15, a bogus `tradeId` returns a 200 with an empty `data` array
+   * instead of 404. The SDK does NOT synthesize a NotFoundError — callers must
+   * treat an empty `data` array as "trade not found OR trade had no fills".
    *
-   * Per PLAN.md §I #15: a bogus `tradeId` returns a 200 with an empty `data`
-   * array — the SDK does NOT synthesize a NotFoundError.
-   *
-   * Per PLAN.md §I #3: the wire response ships SHIFTED `feeUsdc`/`typeTrade`
-   * values; the {@link TradeFill} type omits both fields.
+   * Per §I #3, the wire response ships SHIFTED `feeUsdc` (always literal
+   * `"perp"`) and `typeTrade` (an ISO timestamp) keys. The {@link TradeFill}
+   * type intentionally omits both until the upstream serializer is fixed; all
+   * other fields are positionally correct.
    */
   async fills(tradeId: string): Promise<Page<TradeFill>> {
     const path = `/completed-trades/${encodeSegment(tradeId)}/fills`

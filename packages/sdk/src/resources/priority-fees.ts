@@ -89,6 +89,9 @@ export class PriorityFeesResource {
    *
    * `winner` on each `GossipAuction` (and entries in `previousWinners`) is an
    * IPv4 string per PLAN.md §I #9.
+   *
+   * @returns Single {@link GossipLiveStatus} record (apiResponse envelope).
+   * @see PLAN.md §I #9
    */
   async status(): Promise<Single<GossipLiveStatus>> {
     const raw = await this.http.request<unknown>({
@@ -106,7 +109,10 @@ export class PriorityFeesResource {
    * progressing `snapshotTs`. Use {@link dedupedHistory} to collapse to one
    * row per auction (keeping the most-recent observation).
    *
+   * @param params - slotId / winner / time window / limit / offset filters.
+   * @returns Page of {@link GossipHistoryEntry} rows (apiResponse envelope).
    * @throws ValidationError when `slotId` is not an integer in [0, 4].
+   * @see PLAN.md §I #9
    */
   async history(params: GossipHistoryParams = {}): Promise<Page<GossipHistoryEntry>> {
     assertSlotId(params.slotId)
@@ -124,6 +130,10 @@ export class PriorityFeesResource {
    * No cap is documented server-side for this endpoint; the iterator defaults
    * to `limit = 100` when none is supplied, matching the SDK's other
    * offset-paginated resources. Same client-side validation as {@link history}.
+   *
+   * @param params - same shape as {@link history}.
+   * @returns Async iterable of {@link GossipHistoryEntry} rows.
+   * @throws ValidationError when `slotId` is not an integer in [0, 4].
    */
   iterate(params: GossipHistoryParams = {}): AsyncIterable<GossipHistoryEntry> {
     assertSlotId(params.slotId)
@@ -139,17 +149,28 @@ export class PriorityFeesResource {
   /**
    * `history()` + client-side dedupe by `(slotId, startTime)`.
    *
-   * Defends PLAN.md §I #9 (and the documented batch-9 quirk that the upstream
-   * `ReplacingMergeTree` is not deduplicated at read time): the same auction
-   * appears once per snapshot with progressing `snapshotTs`. This helper
-   * keeps the row with the largest `snapshotTs` per auction and returns the
-   * collapsed list in the same `Page<T>` shape as {@link history}.
+   * @remarks
+   * **What:** Fetches one page of `/hip3/priority-fees/gossip/history` and
+   * collapses rows so each `(slotId, startTime)` pair appears once, keeping
+   * the observation with the largest `snapshotTs`. The page envelope
+   * (`meta`) is forwarded unchanged.
    *
-   * Output order: descending by `snapshotTs` of the winning row (i.e. the
-   * helper preserves the upstream newest-first ordering on the deduped set).
+   * **Why:** the upstream table is a non-deduplicated `ReplacingMergeTree`,
+   * so the same auction appears multiple times with progressing
+   * `snapshotTs`. Callers that just want "one row per auction" would
+   * otherwise re-implement this dedupe on every consumer; the SDK does it
+   * once at the boundary.
    *
-   * Purely client-side — performs the same single HTTP call as
-   * {@link history}, then transforms the in-memory `data[]`.
+   * Output order: descending by `snapshotTs` of the winning row (preserves
+   * the upstream newest-first ordering on the deduped set). Purely
+   * client-side — performs the same single HTTP call as {@link history},
+   * then transforms the in-memory `data[]`.
+   *
+   * @param params - same shape as {@link history}.
+   * @returns Page of deduped {@link GossipHistoryEntry} rows
+   *   (apiResponse envelope, `meta` forwarded from upstream).
+   * @throws ValidationError when `slotId` is not an integer in [0, 4].
+   * @see PLAN.md §I #9
    */
   async dedupedHistory(params: GossipHistoryParams = {}): Promise<Page<GossipHistoryEntry>> {
     const page = await this.history(params)

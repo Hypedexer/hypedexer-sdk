@@ -94,6 +94,11 @@ export class BuildersResource {
    * {@link BuildersResource.iterateTop} to yield {@link Builder} rows directly.
    *
    * `sort` is validated client-side (PLAN.md §I #5); `limit` cap = 100.
+   *
+   * @param params - timeframe / sort / limit / offset filters.
+   * @returns Single {@link BuildersTopData} wrapper (apiResponse envelope).
+   * @throws ValidationError when `sort` / `timeframe` is unknown or `limit > 100`.
+   * @see PLAN.md §I #5
    */
   async top(params: BuildersTopParams = {}): Promise<Single<BuildersTopData>> {
     const raw = await this.http.request<unknown>({
@@ -109,6 +114,11 @@ export class BuildersResource {
    *
    * Defaults `limit` to 100 (the cap) so each request fetches the maximum
    * allowed batch.
+   *
+   * @param params - same shape as {@link top}.
+   * @returns Async iterable of {@link Builder} rows.
+   * @throws ValidationError on the same conditions as {@link top}.
+   * @see PLAN.md §I #5
    */
   iterateTop(params: BuildersTopParams = {}): AsyncIterable<Builder> {
     // Pre-validate so callers see ValidationError synchronously (matches the
@@ -130,6 +140,10 @@ export class BuildersResource {
    * `GET /builders/stats` — global builders stats for a trailing window
    * (defaults to `24h` on the server). `variations.*Pct` values can be
    * `null` when the previous period has zero activity.
+   *
+   * @param params - optional `timeframe` filter.
+   * @returns Single {@link BuildersStatsData} record (apiResponse envelope).
+   * @throws ValidationError when `timeframe` is unknown.
    */
   async stats(params: BuildersStatsParams = {}): Promise<Single<BuildersStatsData>> {
     const raw = await this.http.request<unknown>({
@@ -145,6 +159,8 @@ export class BuildersResource {
    *
    * The inner shape mirrors {@link BuildersStatsData} minus the redundant
    * `timeframe` field (it's the key in the outer record).
+   *
+   * @returns Single {@link BuildersStatsAllTimeframesData} record (apiResponse envelope).
    */
   async statsAllTimeframes(): Promise<Single<BuildersStatsAllTimeframesData>> {
     const raw = await this.http.request<unknown>({
@@ -159,6 +175,13 @@ export class BuildersResource {
    * Validates `addr` client-side even though the server returns 200 on any
    * valid 0x address (PLAN.md §I #14). Unknown builders surface as
    * `builderName: null` with sparse stats.
+   *
+   * @param addr - builder address (URL-encoded via {@link joinPath}).
+   * @param params - optional `timeframe` filter.
+   * @returns Single {@link BuilderAddrStatsData} record (apiResponse envelope).
+   * @throws ValidationError when `addr` is not a valid address or
+   *   `timeframe` is unknown.
+   * @see PLAN.md §I #14
    */
   async addrStats(
     addr: string,
@@ -178,6 +201,13 @@ export class BuildersResource {
    * Response `data` is an OBJECT `{timeframe, builder, users[]}`. Use
    * {@link BuildersResource.iterateUsers} to yield {@link BuilderUser} rows
    * directly. No documented server-side cap on `limit`.
+   *
+   * @param addr - builder address (URL-encoded via {@link joinPath}).
+   * @param params - timeframe / limit / offset filters.
+   * @returns Single {@link BuilderUsersData} wrapper (apiResponse envelope).
+   * @throws ValidationError when `addr` is not a valid address or
+   *   `timeframe` is unknown.
+   * @see PLAN.md §I #14
    */
   async users(addr: string, params: BuilderUsersParams = {}): Promise<Single<BuilderUsersData>> {
     assertAddress(addr, 'addr')
@@ -191,6 +221,11 @@ export class BuildersResource {
   /**
    * Async iterator over the {@link BuilderUser} rows from
    * `/builders/{addr}/users` via offset pagination.
+   *
+   * @param addr - builder address.
+   * @param params - same shape as {@link users}.
+   * @returns Async iterable of {@link BuilderUser} rows.
+   * @throws ValidationError on the same conditions as {@link users}.
    */
   iterateUsers(addr: string, params: BuilderUsersParams = {}): AsyncIterable<BuilderUser> {
     assertAddress(addr, 'addr')
@@ -214,6 +249,8 @@ export class BuildersResource {
    * No pagination supported upstream; the full list (~640 rows at the time
    * of writing) is returned in one call. The `data` payload IS a bare array
    * for this endpoint, so the SDK exposes it as a `Page<BuilderEntry>`.
+   *
+   * @returns Page of {@link BuilderEntry} rows (apiResponse envelope, none-list).
    */
   async list(): Promise<Page<BuilderEntry>> {
     const raw = await this.http.request<unknown>({ path: '/builders/list' })
