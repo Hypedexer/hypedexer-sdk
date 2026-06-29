@@ -48,9 +48,19 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
+  "peerDependencies": {
+    "ws": "^8.18.0"
+  },
+  "peerDependenciesMeta": {
+    "ws": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@types/node": "22.10.2",
+    "@types/ws": "^8.5.13",
     "tsup": "8.3.5",
-    "vitest": "2.1.8"
+    "vitest": "2.1.8",
+    "ws": "^8.18.0"
   }
 }
