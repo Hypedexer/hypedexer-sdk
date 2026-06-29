@@ -60,6 +60,38 @@ export type { ParsedCoin } from './transport/coin.js'
 export { toBigInt, toNumber, parseFundingRate } from './transport/numbers.js'
 
 // -----------------------------------------------------------------------------
+// WebSocket transport
+// -----------------------------------------------------------------------------
+
+export { WSClient } from './transport/ws.js'
+export type {
+  WSClientOptions,
+  WSCloseInfo,
+  WSEvent,
+  WSEventHandlers,
+  WSReconnectInfo,
+} from './transport/ws.js'
+
+export { KNOWN_CHANNELS } from './types/ws.js'
+export type {
+  CompletedTradeItem,
+  Hip4Event,
+  ItemFor,
+  ItemForMap,
+  RecentActivityItem,
+  WSChannel,
+  WSControlFrame,
+  WSErrorFrame,
+  WSMessage,
+  WSOutboundFrame,
+  WSPushFrame,
+  WSSubscriptionAddedFrame,
+  WSSubscriptionRemovedFrame,
+  WSSubscriptionsListFrame,
+  WSWelcomeFrame,
+} from './types/ws.js'
+
+// -----------------------------------------------------------------------------
 // Pagination
 // -----------------------------------------------------------------------------
 
@@ -422,4 +454,4 @@ export { EvmResource } from './resources/evm.js'
 // -----------------------------------------------------------------------------
 
 export { createClient } from './client.js'
-export type { HypedexerClient, HypedexerClientOptions } from './client.js'
+export type { HypedexerClient, HypedexerClientOptions, HypedexerWsOptions } from './client.js'

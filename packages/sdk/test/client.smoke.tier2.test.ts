@@ -109,6 +109,16 @@ describe('createClient — Tier-2 resources', () => {
     expect(typeof client.info.info).toBe('function')
   })
 
+  it('exposes the WebSocket client (lazy — no connection opened)', () => {
+    expect(typeof client.ws.connect).toBe('function')
+    expect(typeof client.ws.disconnect).toBe('function')
+    expect(typeof client.ws.subscribe).toBe('function')
+    expect(typeof client.ws.unsubscribe).toBe('function')
+    expect(typeof client.ws.listSubscriptions).toBe('function')
+    expect(typeof client.ws.on).toBe('function')
+    expect(typeof client.ws.off).toBe('function')
+  })
+
   it('exposes the EVM resource with nested sub-resources', () => {
     expect(typeof client.evm.blocks.list).toBe('function')
     expect(typeof client.evm.blocks.iterate).toBe('function')

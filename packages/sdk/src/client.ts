@@ -14,13 +14,35 @@ import { TwapsResource } from './resources/twaps.js'
 import { UsersResource } from './resources/users.js'
 import { VaultsResource } from './resources/vaults.js'
 import { HttpClient, type HttpClientOptions } from './transport/HttpClient.js'
+import { WSClient } from './transport/ws.js'
 
 /**
- * Construction options for {@link createClient}. Identical to
- * {@link HttpClientOptions} — the factory wires a single `HttpClient` into all
- * resources.
+ * WS-only options forwarded to the underlying {@link WSClient}. `wsBaseUrl`
+ * defaults to `baseUrl` with the scheme rewritten (http→ws, https→wss).
  */
-export interface HypedexerClientOptions extends HttpClientOptions {}
+export interface HypedexerWsOptions {
+  /** Override the WS base URL. Defaults to `baseUrl` with scheme http→ws. */
+  wsBaseUrl?: string
+  /** Forwarded to `WSClient` — `'browser'` throws at construction (PLAN §H.2). */
+  wsTransport?: 'node' | 'browser'
+  /** Forwarded to `WSClient` — auto-reconnect on disconnect (default `true`). */
+  wsAutoReconnect?: boolean
+  /** Forwarded to `WSClient` — WS-level ping interval (default 25_000 ms). */
+  wsHeartbeatMs?: number
+  /** Forwarded to `WSClient` — request/ack timeout (default 5_000 ms). */
+  wsRequestTimeoutMs?: number
+}
+
+/**
+ * Construction options for {@link createClient}. Extends {@link HttpClientOptions}
+ * with optional {@link HypedexerWsOptions} for the realtime WebSocket client.
+ */
+export interface HypedexerClientOptions extends HttpClientOptions, HypedexerWsOptions {}
+
+function httpToWsBaseUrl(baseUrl: string | undefined): string | undefined {
+  if (baseUrl == null) return undefined
+  return baseUrl.replace(/^http(s?):/, (_m, s) => `ws${s}:`)
+}
 
 /**
  * Top-level SDK surface returned by {@link createClient}. Exposes one
@@ -46,6 +68,12 @@ export interface HypedexerClient {
   readonly info: InfoResource
   readonly evm: EvmResource
   readonly http: HttpClient
+  /**
+   * Realtime WebSocket client. Construction is cheap (no socket opened) —
+   * call `ws.connect()` to actually establish the connection. Optional peer
+   * dep `ws` is lazy-loaded on the first connect.
+   */
+  readonly ws: WSClient
 }
 
 /**
@@ -57,6 +85,15 @@ export interface HypedexerClient {
  */
 export function createClient(opts: HypedexerClientOptions): HypedexerClient {
   const http = new HttpClient(opts)
+  const wsBaseUrl = opts.wsBaseUrl ?? httpToWsBaseUrl(opts.baseUrl)
+  const ws = new WSClient({
+    apiKey: opts.apiKey,
+    ...(wsBaseUrl !== undefined ? { baseUrl: wsBaseUrl } : {}),
+    ...(opts.wsTransport !== undefined ? { transport: opts.wsTransport } : {}),
+    ...(opts.wsAutoReconnect !== undefined ? { autoReconnect: opts.wsAutoReconnect } : {}),
+    ...(opts.wsHeartbeatMs !== undefined ? { heartbeatMs: opts.wsHeartbeatMs } : {}),
+    ...(opts.wsRequestTimeoutMs !== undefined ? { requestTimeoutMs: opts.wsRequestTimeoutMs } : {}),
+  })
   return {
     // Tier-1
     fills: new Fills(http),
@@ -76,5 +113,6 @@ export function createClient(opts: HypedexerClientOptions): HypedexerClient {
     info: new InfoResource(http),
     evm: new EvmResource(http),
     http,
+    ws,
   }
 }
