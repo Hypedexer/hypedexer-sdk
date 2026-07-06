@@ -40,6 +40,8 @@ This SDK collapses all of that behind **one client, one envelope, one iterator, 
 | **Tests**    | 501 unit tests + type-regression suite (`expectTypeOf`)            |
 | **Supply**   | Published from GitHub Actions with `npm --provenance`              |
 
+> **AI coding agents:** read [`packages/sdk/AGENTS.md`](./packages/sdk/AGENTS.md) — a task-oriented implementation guide with copy-liftable patterns, upstream quirks to defend against, and a security posture checklist. Repository-level contribution rules for agents modifying the SDK live in the [root `AGENTS.md`](./AGENTS.md).
+
 ---
 
 ## Install
