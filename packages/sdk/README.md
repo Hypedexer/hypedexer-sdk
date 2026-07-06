@@ -337,15 +337,16 @@ try {
 }
 ```
 
-**Server — `.rawBody` keeps the ClickHouse text.**
-The `/spot/*` endpoints currently 500 with a ClickHouse stack trace
-(PLAN.md §I #1). Subscribe to `fills_spot` on the WebSocket instead.
+**Server — `.rawBody` keeps the upstream response text.**
+On any 5xx the SDK surfaces the parsed body (object) or the raw string
+via `err.rawBody`, so you can log the ClickHouse trace or the FastAPI
+detail without re-parsing.
 
 ```ts
 import { ServerError } from '@hypedexer/sdk'
 
 try {
-  await client.fills.spotList({ limit: 100 })
+  await client.fills.list({ limit: 100 })
 } catch (err) {
   if (err instanceof ServerError) {
     console.error('upstream 500; rawBody preview:', String(err.rawBody).slice(0, 200))
@@ -365,7 +366,6 @@ rationale lives in [PLAN.md §I](../../PLAN.md#i-known-api-bugs--gotchas-sdk-mus
 
 | #   | Upstream                                                                       | SDK posture                                                                 |
 | --: | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-|   1 | `/spot/*` REST returns 500 ClickHouse                                          | Methods throw `ServerError`; recommend `client.ws.subscribe('fills_spot')`  |
 |   2 | `/completed-trades/` has no server `limit` cap (responses up to 70 MB / 48 s)  | Client-side hard cap at 100; larger requests throw `ValidationError`        |
 |   4 | `/liquidations/?order=asc` returns a year-2245 corrupt cursor                  | `iterate({order:'asc'})` throws; `list({order:'asc'})` allowed for page 1   |
 |  19 | WebSocket subprotocol echo broken → browsers can't connect                     | `wsTransport: 'browser'` throws at construction                             |

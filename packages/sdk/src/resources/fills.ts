@@ -1,4 +1,3 @@
-import { ServerError } from '../errors/index.js'
 import { assertAddress } from '../internal/address.js'
 import { assertEnum, assertLimit, assertOptionalEnum } from '../internal/assert.js'
 import { joinPath } from '../internal/url.js'
@@ -23,8 +22,6 @@ const FILLS_LIMIT_CAP = 1000
 const SPOT_LIMIT_CAP = 1000
 const SIDES = ['A', 'B'] as const
 const TIME_RANGES: readonly FillsTimeRange[] = ['1h', '24h', '7d', '30d']
-const SPOT_BUG_MESSAGE =
-  '/fills/spot/* is broken upstream (500 ClickHouse). Subscribe to the WebSocket `fills_spot` channel instead. See PLAN.md §I #1.'
 
 type Query = Record<string, string | number | boolean | null | undefined>
 
@@ -65,23 +62,22 @@ function buildSpotQuery(p: SpotFillsListParams): Query {
 }
 
 /**
- * `/fills/*` resource. Covers the entire perp fills surface (full history,
- * 24h hot cache, per-user history, total count) plus the broken spot stubs.
+ * `/fills/*` resource. Covers the entire perp AND spot fills surface (full
+ * history, 24h hot cache, per-user history, total count).
  *
- * All perp endpoints use cursor pagination (APIResponse envelope) and accept
- * the same filter shape (`coin`, `side`, `hasPriorityGas`, time window,
- * `cursor`, `limit` 1..1000).
+ * Perp endpoints use cursor pagination; spot endpoints use offset pagination.
+ * All share the APIResponse envelope shape.
  *
  * Class-wide quirks defended in this resource (per PLAN.md §I):
- * - bug #1: `/fills/spot/*` returns 500 ClickHouse upstream — {@link Fills.spotList}
- *   and {@link Fills.spotUser} throw `ServerError` synchronously without a
- *   network round-trip and point callers at the `fills_spot` WS channel.
  * - bug #5: `side` and `timeRange` are validated against frozen enums client-side
  *   to defend against the server's silent fallback behaviour.
  * - bug #14: addresses on `/fills/user/{addr}` are validated client-side to
  *   match the early-rejection behaviour of the rest of the SDK.
  *
- * @see PLAN.md §I bug #1
+ * Historical note: `/fills/spot/*` returned 500 ClickHouse upstream when this
+ * resource was first authored (PLAN.md §I #1). That has since been fixed
+ * upstream and both spot methods now issue real requests.
+ *
  * @see PLAN.md §I bug #5
  * @see PLAN.md §I bug #14
  */
@@ -223,48 +219,48 @@ export class Fills {
   }
 
   /**
-   * `GET /fills/spot/` — BROKEN UPSTREAM. Rejects synchronously with
-   * `ServerError` without making a network round-trip.
+   * `GET /fills/spot/` — offset-paginated spot fills history (APIResponse envelope).
    *
-   * @param params - Validated client-side (`side`, `limit` 1..1000) so bad input
-   *   still surfaces as `ValidationError` for API parity.
-   * @returns Never resolves — always throws.
-   * @throws {ValidationError} when input fails the same client-side checks as the perp methods.
-   * @throws {ServerError} unconditionally (status 500) with a message pointing at
-   *   the WebSocket `fills_spot` channel as the working alternative.
-   * @see PLAN.md §I bug #1
+   * @param params - Optional filters (`coin`, `side`, time window) plus
+   *   `limit` (1..1000, defaults to server side) and `offset` for paging.
+   * @returns `Page<SpotFill>` with the standard envelope meta. Offset-paginated,
+   *   so callers walk pages by incrementing `offset` until they receive
+   *   fewer rows than `limit`.
+   * @throws {ValidationError} when `side` is not `'A' | 'B'` or `limit` exceeds
+   *   the 1000 cap.
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure.
    * @remarks
-   * `/fills/spot/*` returns 500 ClickHouse on the backend. The SDK refuses to
-   * waste a request on it; subscribe to `client.ws.subscribe('fills_spot')`
-   * instead. The stub is kept so the typed surface stays complete and so the
-   * method can be flipped to a real call once the backend is fixed.
+   * Historical note: this path returned 500 ClickHouse until the upstream fix
+   * (PLAN.md §I #1). The stream-shaped alternative
+   * `client.ws.subscribe('fills_spot')` is still available for low-latency use.
    */
   async spotList(params: SpotFillsListParams = {}): Promise<Page<SpotFill>> {
-    // Run client-side validation first so callers that pass bogus params still
-    // get a `ValidationError` (preserves the contract of every other method).
-    buildSpotQuery(params)
-    throw new ServerError(SPOT_BUG_MESSAGE, { status: 500 })
+    const raw = await this.http.request<unknown>({
+      path: '/fills/spot/',
+      query: buildSpotQuery(params),
+    })
+    return unwrap<SpotFill>(raw, 'apiResponse')
   }
 
   /**
-   * `GET /fills/spot/user/{address}` — BROKEN UPSTREAM. Rejects synchronously
-   * with `ServerError` without making a network round-trip.
+   * `GET /fills/spot/user/{address}` — offset-paginated per-user spot fills.
    *
-   * @param address - Hyperliquid wallet address (0x-prefixed, 40 hex chars). Validated client-side.
+   * @param address - Hyperliquid wallet address (0x-prefixed, 40 hex chars).
+   *   Validated client-side (PLAN.md §I #14).
    * @param params - Same filter shape as {@link Fills.spotList}.
-   * @returns Never resolves — always throws.
-   * @throws {ValidationError} when `address` or any other input fails client-side validation.
-   * @throws {ServerError} unconditionally (status 500) with a message pointing at the WS channel.
-   * @see PLAN.md §I bug #1
-   * @see PLAN.md §I bug #14
-   * @remarks
-   * Same posture as {@link Fills.spotList}: spot REST is unusable, so the
-   * method throws without hitting the network. Use `client.ws.subscribe('fills_spot')`
-   * with an `addr` filter instead.
+   * @returns `Page<SpotFill>` scoped to `address`.
+   * @throws {ValidationError} when `address` fails the on-chain shape check
+   *   or when other params fail client-side validation.
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure.
    */
   async spotUser(address: string, params: SpotFillsUserParams = {}): Promise<Page<SpotFill>> {
     assertAddress(address, 'address')
-    buildSpotQuery(params)
-    throw new ServerError(SPOT_BUG_MESSAGE, { status: 500 })
+    const raw = await this.http.request<unknown>({
+      path: joinPath('fills', 'spot', 'user', address),
+      query: buildSpotQuery(params),
+    })
+    return unwrap<SpotFill>(raw, 'apiResponse')
   }
 }

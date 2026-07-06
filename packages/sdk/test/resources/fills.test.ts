@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { ServerError, ValidationError } from '../../src/errors/index.js'
+import { ValidationError } from '../../src/errors/index.js'
 import { Fills } from '../../src/resources/fills.js'
 import { HttpClient } from '../../src/transport/HttpClient.js'
 import type { Address } from '../../src/types/common.js'
-import type { Fill } from '../../src/types/fill.js'
+import type { Fill, SpotFill } from '../../src/types/fill.js'
 
 const VALID_ADDRESS = '0x13ab1fa35000f7332c601b17dd1ea796a85fe803' as Address
 const BAD_ADDRESS = '0xnot-an-address'
@@ -338,18 +338,54 @@ describe('Fills.count', () => {
 })
 
 // -----------------------------------------------------------------------------
-// spotList / spotUser — throw ServerError without network (bug #1)
+// spotList / spotUser — real HTTP now that PLAN §I #1 is fixed upstream
 // -----------------------------------------------------------------------------
 
+function sampleSpotFill(overrides: Partial<SpotFill> = {}): SpotFill {
+  return {
+    user: VALID_ADDRESS,
+    coin: '@107',
+    coinMeaning: '@107',
+    px: 70.871,
+    sz: 6.27,
+    side: 'A',
+    time: '2026-07-06T16:38:34.039000',
+    tid: 15194412084643,
+    oid: 488940769627,
+    hash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+    fee: 6.269e-5,
+    feeToken: 'HYPE',
+    feeUsdc: 0.00444290299,
+    typeTrade: 'spot',
+    priorityGas: null,
+    ...overrides,
+  }
+}
+
 describe('Fills.spotList', () => {
-  it('throws ServerError synchronously without making a fetch call (bug #1)', async () => {
-    const { http, fetchMock } = buildClient(() => mockResponse({ success: true, data: [] }))
+  it('GETs /fills/spot/ with offset pagination and unwraps Page<SpotFill>', async () => {
+    const row = sampleSpotFill()
+    const { http, fetchMock } = buildClient((url) => {
+      expect(url.pathname).toBe('/fills/spot/')
+      expect(url.searchParams.get('coin')).toBe('@107')
+      expect(url.searchParams.get('limit')).toBe('50')
+      expect(url.searchParams.get('offset')).toBe('100')
+      return mockResponse({
+        success: true,
+        message: 'Fetched 1 fills_spot (compact)',
+        data: [row],
+        execution_time_ms: 12,
+      })
+    })
     const fills = new Fills(http)
-    await expect(fills.spotList()).rejects.toBeInstanceOf(ServerError)
-    expect(fetchMock).not.toHaveBeenCalled()
+    const res = await fills.spotList({ coin: '@107', limit: 50, offset: 100 })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(res.data).toHaveLength(1)
+    expect(res.data[0]?.typeTrade).toBe('spot')
+    expect(res.meta.family).toBe('apiResponse')
   })
 
-  it('still runs client-side validation (limit cap) before the spot throw', async () => {
+  it('rejects a bogus limit with ValidationError before any network call', async () => {
     const { http, fetchMock } = buildClient(() => mockResponse({ success: true, data: [] }))
     const fills = new Fills(http)
     await expect(fills.spotList({ limit: 9999 })).rejects.toBeInstanceOf(ValidationError)
@@ -358,14 +394,21 @@ describe('Fills.spotList', () => {
 })
 
 describe('Fills.spotUser', () => {
-  it('throws ServerError synchronously without making a fetch call (bug #1)', async () => {
-    const { http, fetchMock } = buildClient(() => mockResponse({ success: true, data: [] }))
+  it('GETs /fills/spot/user/{addr} and unwraps Page<SpotFill>', async () => {
+    const row = sampleSpotFill()
+    const { http, fetchMock } = buildClient((url) => {
+      expect(url.pathname).toBe(`/fills/spot/user/${VALID_ADDRESS}`)
+      expect(url.searchParams.get('limit')).toBe('25')
+      return mockResponse({ success: true, data: [row] })
+    })
     const fills = new Fills(http)
-    await expect(fills.spotUser(VALID_ADDRESS)).rejects.toBeInstanceOf(ServerError)
-    expect(fetchMock).not.toHaveBeenCalled()
+    const res = await fills.spotUser(VALID_ADDRESS, { limit: 25 })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(res.data).toHaveLength(1)
+    expect(res.meta.family).toBe('apiResponse')
   })
 
-  it('throws ValidationError on a bad address (before the spot throw)', async () => {
+  it('rejects a bad address synchronously with ValidationError', async () => {
     const { http, fetchMock } = buildClient(() => mockResponse({ success: true, data: [] }))
     const fills = new Fills(http)
     await expect(fills.spotUser(BAD_ADDRESS)).rejects.toBeInstanceOf(ValidationError)
