@@ -1,1 +1,0 @@
-{"detail":[{"type":"literal_error","loc":["query","timeframe"],"msg":"Input should be '1h', '24h', '7d' or '30d'","input":"bogus","ctx":{"expected":"'1h', '24h', '7d' or '30d'"}}]}

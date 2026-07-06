@@ -1,2 +1,0 @@
-{"success":true,"message":"Block 34849609","data":{"block_time":"2026-05-11T21:02:30","block_number":34849609,"block_hash":"0xa49b60e659b4ba82555746d10c20ed3d2cafa14db9ff833d96b66bd86970510b","parent_hash":"0xc3660ad99f638ba6bd57f65f62082005751e20d06b7d193c20e993445fd7cc57","gas_limit":3000000,"gas_used":0,"base_fee_per_gas":100000000,"tx_count":0,"system_tx_count":0},"total_count":null,"execution_time_ms":7.78,"next_cursor":null,"has_more":false}
----STATUS:200 TIME:1.112024

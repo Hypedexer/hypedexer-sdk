@@ -1,2 +1,0 @@
-{"success":true,"message":"Backstop health for km","data":{"dex_id":"km","backstop_address":"0x4000000000000000000000000000000000000005","dex_index":5,"principal_deposited_usdc":0.0,"principal_withdrawn_usdc":0.0,"net_principal_usdc":0.0,"fill_count":1812,"notional_traded":1399890.7570119998,"fees_paid":56.16668099999999,"fills_last_24h":0,"last_fill_time":"2026-04-10T22:10:27.052000","coins_active":1,"first_fill_time":"2026-03-23T11:10:32.434000"},"total_count":null,"execution_time_ms":204.83,"next_cursor":null,"has_more":false}
----STATUS:200 TIME:1.065827

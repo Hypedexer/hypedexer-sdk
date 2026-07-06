@@ -1,1 +1,0 @@
-{"detail":[{"type":"literal_error","loc":["query","status"],"msg":"Input should be 'activated', 'finished', 'terminated' or 'all'","input":"bogus","ctx":{"expected":"'activated', 'finished', 'terminated' or 'all'"}}]}

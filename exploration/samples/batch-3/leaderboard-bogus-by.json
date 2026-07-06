@@ -1,1 +1,0 @@
-{"detail":[{"type":"enum","loc":["query","by"],"msg":"Input should be 'volume', 'pnl', 'trades' or 'priority_fees'","input":"bogus","ctx":{"expected":"'volume', 'pnl', 'trades' or 'priority_fees'"}}]}

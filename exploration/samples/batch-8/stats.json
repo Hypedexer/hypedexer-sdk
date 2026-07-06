@@ -1,2 +1,0 @@
-{"success":true,"message":"EVM stats","data":{"total_blocks":383321,"total_transactions":960114,"total_logs":4323575,"first_block":30739776,"last_block":34849609,"first_block_time":"2026-03-26T02:00:00","last_block_time":"2026-05-11T21:02:30"},"total_count":null,"execution_time_ms":27.58,"next_cursor":null,"has_more":false}
----STATUS:200 TIME:2.773744

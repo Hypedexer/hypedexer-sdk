@@ -1,1 +1,0 @@
-{"detail":[{"type":"less_than_equal","loc":["query","days"],"msg":"Input should be less than or equal to 30","input":"999","ctx":{"le":30}}]}

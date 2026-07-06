@@ -1,1 +1,0 @@
-{"success":true,"message":"User overview","data":{"user":"0x123","total_volume":0.0,"total_fees":0.0,"fill_count":0,"unique_coins":0,"total_pnl":0.0,"total_trades":0,"total_priority_gas":0.0,"last_activity":"1970-01-01T00:00:00","win_rate":0.0},"total_count":null,"execution_time_ms":26.05,"next_cursor":null,"has_more":null}

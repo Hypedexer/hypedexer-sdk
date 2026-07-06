@@ -1,1 +1,0 @@
-{"detail":[{"type":"string_pattern_mismatch","loc":["query","order"],"msg":"String should match pattern '^(?i)(ASC|DESC)$'","input":"bogus","ctx":{"pattern":"^(?i)(ASC|DESC)$"}}]}
