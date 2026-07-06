@@ -1,4 +1,4 @@
-import { NetworkError, parseError } from '../errors/index.js'
+import { NetworkError, ValidationError, parseError } from '../errors/index.js'
 
 export type FetchLike = typeof fetch
 
@@ -32,7 +32,16 @@ export class HttpClient {
   private readonly defaultHeaders: Record<string, string>
 
   constructor(opts: HttpClientOptions) {
-    if (!opts.apiKey) throw new TypeError('HttpClient requires an apiKey')
+    if (!opts.apiKey) {
+      throw new ValidationError('HttpClient requires an apiKey', [
+        {
+          msg: 'apiKey is required and must be a non-empty string',
+          loc: ['options', 'apiKey'],
+          type: 'http_missing_api_key',
+          input: opts.apiKey,
+        },
+      ])
+    }
     this.apiKey = opts.apiKey
     this.baseUrl = (opts.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, '')
     this.fetchFn = opts.fetch ?? globalThis.fetch

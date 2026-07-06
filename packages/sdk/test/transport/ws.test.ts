@@ -207,6 +207,16 @@ describe('WSClient', () => {
     ).toThrow(/browser.*not supported/i)
   })
 
+  it('throws ValidationError when apiKey is missing', () => {
+    expect(() => new WSClient({ apiKey: '' })).toThrow(ValidationError)
+    try {
+      new WSClient({ apiKey: '' })
+    } catch (err) {
+      expect(err).toBeInstanceOf(ValidationError)
+      expect((err as ValidationError).detail[0]?.loc).toEqual(['options', 'apiKey'])
+    }
+  })
+
   // (a) connect() resolves only after welcome frame
   it('connect() resolves after the welcome frame', async () => {
     const client = makeClient(server)
@@ -344,6 +354,22 @@ describe('WSClient', () => {
     await client.disconnect()
   })
 
+  it('stops sending heartbeats after the socket closes', async () => {
+    // autoReconnect off so the close is fully terminal for this test's window.
+    const client = makeClient(server, { heartbeatMs: 60, autoReconnect: false })
+    await client.connect()
+    // Let a couple of pings land so we have a baseline.
+    await new Promise<void>((r) => setTimeout(r, 220))
+    const baseline = server.pingCount()
+    expect(baseline).toBeGreaterThanOrEqual(2)
+    // Server-side close — the SDK should stop the heartbeat timer.
+    server.lastSocket()?.close(1000, 'bye')
+    // Wait long enough that further pings WOULD have fired if the timer had leaked.
+    await new Promise<void>((r) => setTimeout(r, 260))
+    expect(server.pingCount()).toBe(baseline)
+    await client.disconnect()
+  })
+
   // (h) 'error' control frame → 'error' handler receives WSProtocolError
   it('emits WSProtocolError for server-sent error frames', async () => {
     const client = makeClient(server)
@@ -477,19 +503,32 @@ describe('WSClient', () => {
     const timestamps: number[] = []
     client.on('reconnect', ({ attempt }) => {
       timestamps.push(Date.now())
-      // Stop after a few attempts to avoid hanging the test.
-      if (attempt >= 2) {
+      // Stop after 3 attempts so we can assert the 1s → 2s spacing.
+      if (attempt >= 3) {
         void client.disconnect()
       }
     })
+    const startedAt = Date.now()
     // The initial connect() will fail (welcome timeout). Wrap so we then let
     // reconnects fire.
     await client.connect().catch(() => undefined)
 
-    // Wait long enough to see at least the first reconnect (~1s).
-    await new Promise<void>((r) => setTimeout(r, 1300))
+    // First backoff is 1s, second is 2s: at 3.6s we should have >=2 attempts.
+    await new Promise<void>((r) => setTimeout(r, 3600))
 
-    expect(timestamps.length).toBeGreaterThanOrEqual(1)
+    expect(timestamps.length).toBeGreaterThanOrEqual(2)
+    // Attempt #1 fires ~1s after the initial failure (welcome timeout ~120ms).
+    // Allow generous slack for CI jitter but reject if the timer clearly leaked
+    // (e.g. fired within 400ms → no backoff at all).
+    const first = timestamps[0] as number
+    const firstDelay = first - startedAt
+    expect(firstDelay).toBeGreaterThanOrEqual(800)
+    expect(firstDelay).toBeLessThan(2200)
+    // Attempt #2 spacing must be roughly 2s (bounded by [1.4s, 3s]).
+    const second = timestamps[1] as number
+    const gap = second - first
+    expect(gap).toBeGreaterThanOrEqual(1400)
+    expect(gap).toBeLessThan(3000)
     await client.disconnect()
   }, 10_000)
 })

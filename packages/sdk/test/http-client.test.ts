@@ -10,8 +10,14 @@ function mockResponse(status: number, body: string, contentType = 'application/j
 }
 
 describe('HttpClient', () => {
-  it('throws if apiKey is missing', () => {
-    expect(() => new HttpClient({ apiKey: '' })).toThrow(TypeError)
+  it('throws ValidationError if apiKey is missing', () => {
+    expect(() => new HttpClient({ apiKey: '' })).toThrow(ValidationError)
+    try {
+      new HttpClient({ apiKey: '' })
+    } catch (err) {
+      expect(err).toBeInstanceOf(ValidationError)
+      expect((err as ValidationError).detail[0]?.loc).toEqual(['options', 'apiKey'])
+    }
   })
 
   it('attaches X-API-Key header and parses JSON body on 200', async () => {

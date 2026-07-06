@@ -235,7 +235,16 @@ export class WSClient {
   private pendingWelcome: PendingRequest<void> | null = null
 
   constructor(opts: WSClientOptions) {
-    if (!opts.apiKey) throw new TypeError('WSClient requires an apiKey')
+    if (!opts.apiKey) {
+      throw new ValidationError('WSClient requires an apiKey', [
+        {
+          msg: 'apiKey is required and must be a non-empty string',
+          loc: ['options', 'apiKey'],
+          type: 'ws_missing_api_key',
+          input: opts.apiKey,
+        },
+      ])
+    }
     if (opts.transport === 'browser') {
       throw new Error(BROWSER_TRANSPORT_MESSAGE)
     }
@@ -314,7 +323,9 @@ export class WSClient {
         resolve()
       }
       // Safety: if the socket never fires close, resolve after a short tick.
-      setTimeout(() => resolve(), 100)
+      // Unref so the timer never keeps the event loop alive on its own.
+      const safety = setTimeout(() => resolve(), 100)
+      safety.unref?.()
     })
   }
 
