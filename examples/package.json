@@ -1,0 +1,24 @@
+{
+  "name": "@hypedexer/examples",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Runnable examples for @hypedexer/sdk",
+  "scripts": {
+    "example:fills": "tsx 01-recent-fills.ts",
+    "example:profile": "tsx 02-user-profile.ts",
+    "example:hip3": "tsx 03-hip3-markets.ts",
+    "example:liquidations": "tsx 04-liquidations.ts",
+    "example:websocket": "tsx 05-websocket.ts",
+    "example:errors": "tsx 06-error-handling.ts"
+  },
+  "dependencies": {
+    "@hypedexer/sdk": "workspace:*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "tsx": "^4.20.0",
+    "typescript": "5.7.2"
+  }
+}
