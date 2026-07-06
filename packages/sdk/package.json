@@ -4,14 +4,14 @@
   "description": "TypeScript SDK for the Hypedexer Hyperliquid indexer API",
   "license": "MIT",
   "author": "hypedexer",
-  "homepage": "https://github.com/hypedexer/hypedexer-sdk#readme",
+  "homepage": "https://github.com/Hypedexer/hypedexer-sdk#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hypedexer/hypedexer-sdk.git",
+    "url": "git+https://github.com/Hypedexer/hypedexer-sdk.git",
     "directory": "packages/sdk"
   },
   "bugs": {
-    "url": "https://github.com/hypedexer/hypedexer-sdk/issues"
+    "url": "https://github.com/Hypedexer/hypedexer-sdk/issues"
   },
   "keywords": ["hyperliquid", "hypedexer", "indexer", "perp", "spot", "sdk", "typescript"],
   "type": "module",
