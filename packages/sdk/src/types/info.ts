@@ -66,7 +66,9 @@ export interface InfoResultMap {
   gossipLiveStatus: unknown
 }
 
-/** Discriminator literal supported by {@link InfoRequest}. */
+/**
+ * Discriminator literal supported by {@link InfoRequest}.
+ */
 export type InfoType = keyof InfoResultMap
 
 // -----------------------------------------------------------------------------
@@ -89,14 +91,18 @@ export interface InfoFillsBody {
   readonly end_time?: TimeInput
 }
 
-/** Body params for the `fillAnalytics` type — same shape as `/analytics/fills/stats`. */
+/**
+ * Body params for the `fillAnalytics` type — same shape as `/analytics/fills/stats`.
+ */
 export interface InfoFillAnalyticsBody {
   /** 1..168 server-side cap. */
   readonly hours?: number
   readonly coin?: Coin
 }
 
-/** Body params for `fillsSummary` — same shape as `/completed-trades/summary`. */
+/**
+ * Body params for `fillsSummary` — same shape as `/completed-trades/summary`.
+ */
 export interface InfoFillsSummaryBody {
   readonly user?: Address
   readonly coin?: Coin
@@ -116,14 +122,18 @@ export interface InfoUserBody {
   readonly end_time?: TimeInput
 }
 
-/** Body params for `bestTraders24h` — `/overview/top-traders-24h`. */
+/**
+ * Body params for `bestTraders24h` — `/overview/top-traders-24h`.
+ */
 export interface InfoBestTradersBody {
   /** Validated downstream: bogus values silently fall back upstream (PLAN.md §I #5). */
   readonly sort?: 'pnl_pos' | 'pnl_neg' | 'volume' | 'trades'
   readonly limit?: number
 }
 
-/** Body params for `liqHistory` — `/liquidations/`. */
+/**
+ * Body params for `liqHistory` — `/liquidations/`.
+ */
 export interface InfoLiqHistoryBody {
   readonly coin?: Coin
   readonly user?: Address
@@ -137,7 +147,9 @@ export interface InfoLiqHistoryBody {
   readonly end_time?: TimeInput
 }
 
-/** Body params for `twapList` — `/twaps/`. */
+/**
+ * Body params for `twapList` — `/twaps/`.
+ */
 export interface InfoTwapListBody {
   readonly status?: 'activated' | 'finished' | 'terminated' | 'all'
   readonly coin?: Coin
@@ -147,7 +159,9 @@ export interface InfoTwapListBody {
   readonly offset?: number
 }
 
-/** Body params for `topBuilders` — `/builders/top`. */
+/**
+ * Body params for `topBuilders` — `/builders/top`.
+ */
 export interface InfoTopBuildersBody {
   readonly timeframe?: '1h' | '24h' | '7d' | '30d'
   readonly sort?: 'volume' | 'fees' | 'builder_fees' | 'fills' | 'users'
@@ -155,19 +169,25 @@ export interface InfoTopBuildersBody {
   readonly offset?: number
 }
 
-/** Body params for `hip3DexList` — `/hip3/dexs`. */
+/**
+ * Body params for `hip3DexList` — `/hip3/dexs`.
+ */
 export interface InfoHip3DexListBody {
   readonly limit?: number
   readonly offset?: number
 }
 
-/** Body params for `hip3Snapshots` — `/hip3/snapshots`. */
+/**
+ * Body params for `hip3Snapshots` — `/hip3/snapshots`.
+ */
 export interface InfoHip3SnapshotsBody {
   readonly dex_id?: string
   readonly coin?: Coin
 }
 
-/** Body params for `vaultList` — `/vaults/vaultSummaries`. */
+/**
+ * Body params for `vaultList` — `/vaults/vaultSummaries`.
+ */
 export interface InfoVaultListBody {
   /** 1..5000 server cap. */
   readonly limit?: number
@@ -175,7 +195,9 @@ export interface InfoVaultListBody {
   readonly includeClosed?: boolean
 }
 
-/** Body params for `fillsByTradeId` — `/completed-trades/{trade_id}/fills`. */
+/**
+ * Body params for `fillsByTradeId` — `/completed-trades/{trade_id}/fills`.
+ */
 export interface InfoFillsByTradeIdBody {
   /** Composite id (may contain `:` for HIP-3 coins). Required by the server. */
   readonly tradeId: string

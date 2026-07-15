@@ -146,7 +146,9 @@ export interface TwapsStatusBucket {
   readonly uniqueCoins: number
 }
 
-/** Aggregate fill summary inside `/twaps/stats`. */
+/**
+ * Aggregate fill summary inside `/twaps/stats`.
+ */
 export interface TwapsStatsFillSummary {
   readonly count: number
   readonly volume: number
@@ -155,7 +157,9 @@ export interface TwapsStatsFillSummary {
   readonly uniqueTwaps: number
 }
 
-/** Payload of `GET /twaps/stats`. */
+/**
+ * Payload of `GET /twaps/stats`.
+ */
 export interface TwapsStatsData {
   readonly hours: number
   readonly totalTwaps: number
@@ -191,6 +195,9 @@ export interface TwapFill
 // Request param shapes
 // -----------------------------------------------------------------------------
 
+/**
+ * Sort direction for the TWAP list endpoints (`/twaps/` and `/twaps/user/{addr}`).
+ */
 export type TwapsOrder = 'asc' | 'desc'
 
 /**
@@ -209,7 +216,9 @@ export interface TwapsListParams {
   readonly offset?: number
 }
 
-/** Params for `GET /twaps/stats`. */
+/**
+ * Params for `GET /twaps/stats`.
+ */
 export interface TwapsStatsParams {
   /** Server default is 1h. */
   readonly hours?: number

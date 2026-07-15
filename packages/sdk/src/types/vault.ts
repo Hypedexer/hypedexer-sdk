@@ -7,7 +7,9 @@ import type { Address, Hex } from './common.js'
  */
 export type EpochMs = number
 
-/** Bare `YYYY-MM-DD` string. Use `parseTimestamp(value, 'date')` to get UTC midnight. */
+/**
+ * Bare `YYYY-MM-DD` string. Use `parseTimestamp(value, 'date')` to get UTC midnight.
+ */
 export type DateOnly = string
 
 // -----------------------------------------------------------------------------
@@ -129,6 +131,11 @@ export interface UserVaultEquity {
 // Request params
 // -----------------------------------------------------------------------------
 
+/**
+ * Params for `GET /vaults/vaultDetails`. `startTime` / `endTime` filter the
+ * returned `leaderCommissionHistory[]` array; the main vault meta is always
+ * returned regardless.
+ */
 export interface VaultDetailsParams {
   readonly vaultAddress: Address
   /** Filters the `leaderCommissionHistory[]` time range (epoch-ms wire). */
@@ -137,6 +144,9 @@ export interface VaultDetailsParams {
   readonly endTime?: TimeInput
 }
 
+/**
+ * Params for `GET /vaults/vaultSummaries`. Offset pagination, `limit` capped at 5000.
+ */
 export interface VaultSummariesParams {
   /** 1..5000 — rejected client-side above the cap. */
   readonly limit?: number
@@ -146,6 +156,10 @@ export interface VaultSummariesParams {
   readonly includeClosed?: boolean
 }
 
+/**
+ * Params for `GET /vaults/dailySnapshots` and `GET /vaults/equitySnapshots`.
+ * Time-windowed, `limit` capped at 5000.
+ */
 export interface VaultSnapshotsParams {
   readonly vaultAddress: Address
   readonly startTime?: TimeInput
@@ -154,6 +168,10 @@ export interface VaultSnapshotsParams {
   readonly limit?: number
 }
 
+/**
+ * Params for `GET /vaults/vaultLedger`. Time-windowed, `limit` capped at 5000,
+ * with an optional per-funder `user` filter.
+ */
 export interface VaultLedgerParams {
   readonly vaultAddress: Address
   /** Optional filter to one funder's transactions. */
@@ -164,6 +182,9 @@ export interface VaultLedgerParams {
   readonly limit?: number
 }
 
+/**
+ * Params for `GET /vaults/userVaultEquities`. Lists vault equities for one user.
+ */
 export interface UserVaultEquitiesParams {
   readonly user: Address
 }

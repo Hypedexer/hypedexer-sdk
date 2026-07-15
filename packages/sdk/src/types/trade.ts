@@ -12,6 +12,9 @@ export type Direction = 'long' | 'short'
  */
 export type TradeSortBy = 'pnl' | 'time' | 'volume' | 'duration'
 
+/**
+ * Sort direction for `?sort_dir=` on `/completed-trades/`.
+ */
 export type TradeSortDir = 'asc' | 'desc'
 
 /**

@@ -22,7 +22,9 @@ export const KNOWN_CHANNELS = [
   'hip4_events',
 ] as const
 
-/** Literal union of valid WS channel names; see PLAN §H.1. */
+/**
+ * Literal union of valid WS channel names; see PLAN §H.1.
+ */
 export type WSChannel = (typeof KNOWN_CHANNELS)[number]
 
 /**
@@ -107,7 +109,9 @@ export interface ItemForMap {
   recent_activity: RecentActivityItem
 }
 
-/** Resolves a channel literal to its push-item type via {@link ItemForMap}. */
+/**
+ * Resolves a channel literal to its push-item type via {@link ItemForMap}.
+ */
 export type ItemFor<C extends WSChannel> = ItemForMap[C]
 
 /**
@@ -126,7 +130,9 @@ export interface WSMessage<C extends WSChannel> {
   readonly items: ReadonlyArray<ItemFor<C>>
 }
 
-/** Wire-level push frame (pre-normalization); see PLAN §H.6 (batch-9). */
+/**
+ * Wire-level push frame (pre-normalization); see PLAN §H.6 (batch-9).
+ */
 export interface WSPushFrame {
   readonly type: string
   readonly count: number
@@ -145,7 +151,9 @@ export interface WSWelcomeFrame {
   readonly available_subscriptions: ReadonlyArray<string>
 }
 
-/** Reply to `list_subscriptions`; reports currently-active subs (batch-9). */
+/**
+ * Reply to `list_subscriptions`; reports currently-active subs (batch-9).
+ */
 export interface WSSubscriptionsListFrame {
   readonly type: 'subscriptions_list'
   readonly active_subscriptions: ReadonlyArray<string>
@@ -166,7 +174,9 @@ export interface WSSubscriptionAddedFrame {
   readonly active_subscriptions?: ReadonlyArray<string>
 }
 
-/** Ack for an `unsubscribe` request; mirrors `subscription_added` (batch-9). */
+/**
+ * Ack for an `unsubscribe` request; mirrors `subscription_added` (batch-9).
+ */
 export interface WSSubscriptionRemovedFrame {
   readonly type: 'subscription_removed'
   readonly subscription: {
@@ -188,7 +198,9 @@ export interface WSErrorFrame {
   readonly message: string
 }
 
-/** All server → client control frame shapes (batch-9 inventory). */
+/**
+ * All server → client control frame shapes (batch-9 inventory).
+ */
 export type WSControlFrame =
   | WSWelcomeFrame
   | WSSubscriptionsListFrame

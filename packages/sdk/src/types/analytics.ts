@@ -10,10 +10,14 @@ import type { Coin } from './common.js'
  */
 export type AnalyticsIsoTimestamp = string
 
-/** Bare `YYYY-MM-DD` string. Use `parseTimestamp(value, 'date')` to get UTC midnight. */
+/**
+ * Bare `YYYY-MM-DD` string. Use `parseTimestamp(value, 'date')` to get UTC midnight.
+ */
 export type DateOnly = string
 
-/** Shared `time_range` envelope returned by every `*-stats` endpoint. */
+/**
+ * Shared `time_range` envelope returned by every `*-stats` endpoint.
+ */
 export interface TimeRangeIso {
   readonly start: AnalyticsIsoTimestamp
   readonly end: AnalyticsIsoTimestamp
@@ -51,7 +55,9 @@ export interface PriorityFeesStatsData {
   readonly coin?: Coin
 }
 
-/** One daily bucket of `/analytics/priority-fees/chart/daily`. */
+/**
+ * One daily bucket of `/analytics/priority-fees/chart/daily`.
+ */
 export interface PriorityFeesDailyPoint {
   /** `YYYY-MM-DD`. Use `parseTimestamp(value, 'date')` to get UTC midnight. */
   readonly date: DateOnly
@@ -100,28 +106,43 @@ export interface LiquidationsStatsData {
 // Request parameter types
 // ---------------------------------------------------------------------------
 
+/**
+ * Query params for `/analytics/fills/stats`.
+ */
 export interface FillsStatsParams {
   /** 1..168 (server cap). Defaults to 1 on the server. */
   readonly hours?: number
   readonly coin?: Coin
 }
 
+/**
+ * Query params for `/analytics/priority-fees/stats`.
+ */
 export interface PriorityFeesStatsParams {
   /** 1..168 (server cap). Defaults to 1 on the server. */
   readonly hours?: number
   readonly coin?: Coin
 }
 
+/**
+ * Query params for `/analytics/priority-fees/chart/daily`.
+ */
 export interface PriorityFeesChartDailyParams {
   readonly startTime?: TimeInput
   readonly endTime?: TimeInput
 }
 
+/**
+ * Query params for `/analytics/priority-fees/gossip/leaderboard`.
+ */
 export interface GossipLeaderboardParams {
   /** 1..200 (server cap). */
   readonly limit?: number
 }
 
+/**
+ * Query params for `/analytics/liquidations/stats`.
+ */
 export interface LiquidationsStatsParams {
   /** 1..30 (server cap). Defaults to 1 on the server. */
   readonly days?: number

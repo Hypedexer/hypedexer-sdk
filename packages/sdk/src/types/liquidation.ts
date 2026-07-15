@@ -85,6 +85,9 @@ export interface Liquidation {
  */
 export type LiquidationOrder = 'asc' | 'desc'
 
+/**
+ * Query parameters for `GET /liquidations/` (cursor-paginated).
+ */
 export interface LiquidationsListParams {
   readonly coin?: Coin
   readonly user?: Address
@@ -100,6 +103,9 @@ export interface LiquidationsListParams {
   readonly order?: LiquidationOrder
 }
 
+/**
+ * Query parameters for `GET /liquidations/recent` (cursor-paginated, 24h cache).
+ */
 export interface LiquidationsRecentParams {
   readonly coin?: Coin
   readonly cursor?: string

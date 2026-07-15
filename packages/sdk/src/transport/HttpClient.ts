@@ -1,7 +1,15 @@
 import { NetworkError, ValidationError, parseError } from '../errors/index.js'
 
+/**
+ * A `fetch`-compatible function. Lets callers inject a custom implementation
+ * (e.g. a polyfill or a mock in tests) that matches the global `fetch`
+ * signature.
+ */
 export type FetchLike = typeof fetch
 
+/**
+ * Construction options for {@link HttpClient}. Only `apiKey` is required.
+ */
 export interface HttpClientOptions {
   apiKey: string
   baseUrl?: string
@@ -11,6 +19,16 @@ export interface HttpClientOptions {
   defaultHeaders?: Record<string, string>
 }
 
+/**
+ * A single HTTP request passed to {@link HttpClient.request}.
+ *
+ * @remarks
+ * `path` is joined onto the client's base URL. `query` values that are
+ * `null` or `undefined` are dropped; the rest are stringified. When `body`
+ * is present and not already a string it is JSON-serialized and a JSON
+ * `content-type` is set. `timeoutMs` overrides the client default for this
+ * request only.
+ */
 export interface HttpRequest {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
   path: string
@@ -24,6 +42,17 @@ export interface HttpRequest {
 const DEFAULT_BASE_URL = 'https://api.hypedexer.com'
 const DEFAULT_TIMEOUT_MS = 30_000
 
+/**
+ * Minimal JSON HTTP client for the Hypedexer REST API.
+ *
+ * @remarks
+ * Sends the API key as the `X-API-Key` header, applies a per-request or
+ * default timeout via `AbortController`, and maps error responses through
+ * {@link parseError}. Successful responses are JSON-parsed; an empty body
+ * resolves to `undefined`. Network failures and unparseable bodies surface
+ * as {@link NetworkError}. Constructing without a non-empty `apiKey` throws
+ * {@link ValidationError}.
+ */
 export class HttpClient {
   private readonly apiKey: string
   private readonly baseUrl: string

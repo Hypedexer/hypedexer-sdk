@@ -1,3 +1,6 @@
+/**
+ * The published version of the `@hypedexer/sdk` package.
+ */
 export const VERSION = '0.0.0'
 
 // -----------------------------------------------------------------------------

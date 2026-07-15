@@ -61,12 +61,16 @@ export interface SpotFill {
   readonly priorityGas: number | null
 }
 
-/** Discriminated union on `typeTrade` across the two fill shapes. */
+/**
+ * Discriminated union on `typeTrade` across the two fill shapes.
+ */
 export type AnyFill =
   | (Fill & { readonly typeTrade: 'perp' })
   | (SpotFill & { readonly typeTrade: 'spot' })
 
-/** `/fills/count` single-record payload. */
+/**
+ * `/fills/count` single-record payload.
+ */
 export interface FillsCount {
   readonly count: number
   /** ISO with `+00:00` offset, µs precision. Use `parseTimestamp(value, 'iso')` to get a Date. */
@@ -75,8 +79,14 @@ export interface FillsCount {
   readonly execution_time_ms: number | null
 }
 
+/**
+ * Relative time-range shortcut accepted by `FillsUserParams.timeRange`.
+ */
 export type FillsTimeRange = '1h' | '24h' | '7d' | '30d'
 
+/**
+ * Params for `GET /fills/`. Cursor pagination (`"<epoch_ms>:<tid>"`), `limit` capped at 1000.
+ */
 export interface FillsListParams {
   readonly coin?: Coin
   readonly side?: Side
@@ -89,8 +99,15 @@ export interface FillsListParams {
   readonly limit?: number
 }
 
+/**
+ * Params for `GET /fills/recent`. Same shape as {@link FillsListParams}.
+ */
 export interface FillsRecentParams extends FillsListParams {}
 
+/**
+ * Params for `GET /fills/user/{address}`. Extends {@link FillsListParams} with
+ * an optional `timeRange` shortcut used in place of `startTime` / `endTime`.
+ */
 export interface FillsUserParams extends FillsListParams {
   /** Alternative to `startTime` / `endTime`; mutually exclusive in practice. */
   readonly timeRange?: FillsTimeRange
@@ -111,4 +128,7 @@ export interface SpotFillsListParams {
   readonly limit?: number
 }
 
+/**
+ * Params for `GET /fills/spot/user/{address}`. Same shape as {@link SpotFillsListParams}.
+ */
 export interface SpotFillsUserParams extends SpotFillsListParams {}

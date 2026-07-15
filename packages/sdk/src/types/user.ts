@@ -122,9 +122,15 @@ export interface ActiveUser {
 // Leaderboard — polymorphic on `by` (PLAN.md §I #23)
 // -----------------------------------------------------------------------------
 
-/** Allowed values for `?by=` on `/users/leaderboard`. */
+/**
+ * Allowed values for `?by=` on `/users/leaderboard`.
+ */
 export type LeaderboardBy = 'volume' | 'pnl' | 'trades' | 'priority_fees'
 
+/**
+ * Leaderboard row returned by `/users/leaderboard` when `by=volume`.
+ * See PLAN.md §I #23.
+ */
 export interface LeaderboardByVolume {
   readonly user: Address
   readonly total_volume: number
@@ -132,18 +138,30 @@ export interface LeaderboardByVolume {
   readonly unique_coins: number
 }
 
+/**
+ * Leaderboard row returned by `/users/leaderboard` when `by=pnl`.
+ * See PLAN.md §I #23.
+ */
 export interface LeaderboardByPnl {
   readonly user: Address
   readonly total_pnl: number
   readonly trade_count: number
 }
 
+/**
+ * Leaderboard row returned by `/users/leaderboard` when `by=trades`.
+ * See PLAN.md §I #23.
+ */
 export interface LeaderboardByTrades {
   readonly user: Address
   readonly fill_count: number
   readonly total_volume: number
 }
 
+/**
+ * Leaderboard row returned by `/users/leaderboard` when `by=priority_fees`.
+ * See PLAN.md §I #23.
+ */
 export interface LeaderboardByPriorityFees {
   readonly user: Address
   /** Always 0 currently — see PLAN.md §I #6. */

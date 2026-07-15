@@ -70,10 +70,14 @@ export interface AssetConfig {
   readonly fee_share_pct: number
 }
 
-/** Allowed `status` filter for `/hip3/auctions`. */
+/**
+ * Allowed `status` filter for `/hip3/auctions`.
+ */
 export type AuctionStatus = 'open' | 'closed' | 'expired'
 
-/** Runtime allowlist for {@link AuctionStatus} enum validation. */
+/**
+ * Runtime allowlist for {@link AuctionStatus} enum validation.
+ */
 export const AUCTION_STATUSES = ['open', 'closed', 'expired'] as const
 
 /**
@@ -239,10 +243,14 @@ export interface TraderStats {
   readonly last_update: string
 }
 
-/** Allowed sort dimensions for `/hip3/leaderboard?by=`. */
+/**
+ * Allowed sort dimensions for `/hip3/leaderboard?by=`.
+ */
 export type Hip3LeaderboardBy = 'volume' | 'pnl' | 'trades' | 'fees'
 
-/** Runtime allowlist for {@link Hip3LeaderboardBy}. */
+/**
+ * Runtime allowlist for {@link Hip3LeaderboardBy}.
+ */
 export const HIP3_LEADERBOARD_BY = ['volume', 'pnl', 'trades', 'fees'] as const
 
 /**
@@ -287,14 +295,18 @@ export interface UserCoinStats {
 // Request param types
 // -----------------------------------------------------------------------------
 
-/** Params for `/hip3/dexs`. `limit` capped at 500. */
+/**
+ * Params for `/hip3/dexs`. `limit` capped at 500.
+ */
 export interface Hip3DexsParams {
   /** 1..500 — rejected client-side above the cap. */
   readonly limit?: number
   readonly offset?: number
 }
 
-/** Params for `/hip3/assets`. `limit` capped at 1000. */
+/**
+ * Params for `/hip3/assets`. `limit` capped at 1000.
+ */
 export interface Hip3AssetsParams {
   readonly dexId?: string
   readonly search?: string
@@ -303,7 +315,9 @@ export interface Hip3AssetsParams {
   readonly offset?: number
 }
 
-/** Params for `/hip3/auctions`. `limit` capped at 200. */
+/**
+ * Params for `/hip3/auctions`. `limit` capped at 200.
+ */
 export interface Hip3AuctionsParams {
   readonly status?: AuctionStatus
   /** 1..200 — rejected client-side above the cap. */
@@ -311,7 +325,9 @@ export interface Hip3AuctionsParams {
   readonly offset?: number
 }
 
-/** Params for `/hip3/auctions/history`. `limit` capped at 500. */
+/**
+ * Params for `/hip3/auctions/history`. `limit` capped at 500.
+ */
 export interface Hip3AuctionsHistoryParams {
   readonly dexId?: string
   /** 1..500 — rejected client-side above the cap. */
@@ -319,13 +335,17 @@ export interface Hip3AuctionsHistoryParams {
   readonly offset?: number
 }
 
-/** Params for `/hip3/snapshots`. Both fields are optional. */
+/**
+ * Params for `/hip3/snapshots`. Both fields are optional.
+ */
 export interface Hip3SnapshotsParams {
   readonly dexId?: string
   readonly coin?: Coin
 }
 
-/** Params for `/hip3/top-movers`. `limit` capped at 100. */
+/**
+ * Params for `/hip3/top-movers`. `limit` capped at 100.
+ */
 export interface Hip3TopMoversParams {
   /** 1..100 — rejected client-side above the cap. */
   readonly limit?: number
@@ -381,7 +401,9 @@ export interface Hip3FillsParams {
   readonly offset?: number
 }
 
-/** Params for `/hip3/stats/traders`. `limit` capped at 500. */
+/**
+ * Params for `/hip3/stats/traders`. `limit` capped at 500.
+ */
 export interface Hip3StatsTradersParams {
   readonly dexId?: string
   readonly coin?: Coin
@@ -403,7 +425,9 @@ export interface Hip3LeaderboardParams {
   readonly limit?: number
 }
 
-/** Params for `/hip3/users/{address}/fills`. Time params encode as `start`/`end`. */
+/**
+ * Params for `/hip3/users/{address}/fills`. Time params encode as `start`/`end`.
+ */
 export interface Hip3UserFillsParams {
   readonly coin?: Coin
   readonly dexId?: string
@@ -413,7 +437,9 @@ export interface Hip3UserFillsParams {
   readonly offset?: number
 }
 
-/** Params for `/hip3/users/{address}/coins`. `limit` capped at 100. */
+/**
+ * Params for `/hip3/users/{address}/coins`. `limit` capped at 100.
+ */
 export interface Hip3UserCoinsParams {
   /** 1..100 — rejected client-side above the cap. */
   readonly limit?: number

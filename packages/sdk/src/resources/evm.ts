@@ -290,7 +290,9 @@ export class EvmTransactionsResource {
 // logs sub-resource — /evm/logs
 // -----------------------------------------------------------------------------
 
-/** `/evm/logs` sub-resource: offset pagination, ISO time window. */
+/**
+ * `/evm/logs` sub-resource: offset pagination, ISO time window.
+ */
 export class EvmLogsResource {
   constructor(private readonly http: HttpClient) {}
 
@@ -384,7 +386,9 @@ export class EvmTransfersResource {
 // bridge sub-resource — /evm/bridge/events
 // -----------------------------------------------------------------------------
 
-/** `/evm/bridge/events` sub-namespace, exposed as `evm.bridge.events.list/iterate`. */
+/**
+ * `/evm/bridge/events` sub-namespace, exposed as `evm.bridge.events.list/iterate`.
+ */
 export class EvmBridgeEventsResource {
   constructor(private readonly http: HttpClient) {}
 
@@ -430,7 +434,9 @@ export class EvmBridgeEventsResource {
   }
 }
 
-/** Top-level `evm.bridge.*` namespace — currently holds only `events`. */
+/**
+ * Top-level `evm.bridge.*` namespace — currently holds only `events`.
+ */
 export class EvmBridgeResource {
   readonly events: EvmBridgeEventsResource
 
@@ -443,7 +449,9 @@ export class EvmBridgeResource {
 // stats sub-resource — /evm/stats, /evm/stats/daily
 // -----------------------------------------------------------------------------
 
-/** `/evm/stats/*` sub-resource: single overview + daily series. */
+/**
+ * `/evm/stats/*` sub-resource: single overview + daily series.
+ */
 export class EvmStatsResource {
   constructor(private readonly http: HttpClient) {}
 
@@ -478,7 +486,9 @@ export class EvmStatsResource {
 // user(address) — scoped sub-resource factory
 // -----------------------------------------------------------------------------
 
-/** `/evm/user/{address}/ledger-events` — offset pagination, ISO time window. */
+/**
+ * `/evm/user/{address}/ledger-events` — offset pagination, ISO time window.
+ */
 export class EvmUserLedgerEventsResource {
   constructor(
     private readonly http: HttpClient,
@@ -705,7 +715,9 @@ export class EvmHip3BackstopDexFillsResource {
   }
 }
 
-/** `/evm/hip3/backstop/*` namespace. */
+/**
+ * `/evm/hip3/backstop/*` namespace.
+ */
 export class EvmHip3BackstopResource {
   readonly health: EvmHip3BackstopHealthResource
   readonly transfers: EvmHip3BackstopTransfersResource
@@ -724,7 +736,9 @@ export class EvmHip3BackstopResource {
   }
 }
 
-/** `/evm/hip3/*` namespace — currently holds only `backstop`. */
+/**
+ * `/evm/hip3/*` namespace — currently holds only `backstop`.
+ */
 export class EvmHip3Resource {
   readonly backstop: EvmHip3BackstopResource
 
