@@ -83,7 +83,9 @@ export interface BuilderVariations {
   readonly uniqueUsersPct: number | null
 }
 
-/** `data` payload of `/builders/stats`. */
+/**
+ * `data` payload of `/builders/stats`.
+ */
 export interface BuildersStatsData {
   readonly timeframe: BuilderTimeframe
   readonly current: BuilderStatsBlock
@@ -133,7 +135,9 @@ export interface BuilderAddrStatsData {
   readonly coinBreakdown: ReadonlyArray<BuilderCoinBreakdown>
 }
 
-/** One row in `BuilderUsersData.users` (returned by `/builders/{addr}/users`). */
+/**
+ * One row in `BuilderUsersData.users` (returned by `/builders/{addr}/users`).
+ */
 export interface BuilderUser {
   readonly user: Address
   readonly fillCount: number
@@ -184,12 +188,16 @@ export interface BuildersTopParams {
   readonly offset?: number
 }
 
-/** Params for `/builders/stats`. */
+/**
+ * Params for `/builders/stats`.
+ */
 export interface BuildersStatsParams {
   readonly timeframe?: BuilderTimeframe
 }
 
-/** Params for `/builders/{addr}/stats`. */
+/**
+ * Params for `/builders/{addr}/stats`.
+ */
 export interface BuilderAddrStatsParams {
   readonly timeframe?: BuilderTimeframe
 }

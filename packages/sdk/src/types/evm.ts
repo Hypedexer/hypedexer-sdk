@@ -14,7 +14,9 @@ import type { Address, Coin, Hex, Side, Wei } from './common.js'
  */
 export const EVM_LEDGER_ACTION_TYPES = ['usdSend', 'spotSend', 'subAccount'] as const
 
-/** Allowed `action_type` literal union for `/evm/ledger/transfers`. */
+/**
+ * Allowed `action_type` literal union for `/evm/ledger/transfers`.
+ */
 export type EvmLedgerActionType = (typeof EVM_LEDGER_ACTION_TYPES)[number]
 
 /**
@@ -26,7 +28,9 @@ export type EvmLedgerActionType = (typeof EVM_LEDGER_ACTION_TYPES)[number]
  */
 export const EVM_BRIDGE_EVENT_TYPES = ['withdrawal_finalized', 'deposit_vote', 'withdraw3'] as const
 
-/** Allowed `event_type` literal union for `/evm/bridge/events`. */
+/**
+ * Allowed `event_type` literal union for `/evm/bridge/events`.
+ */
 export type EvmBridgeEventType = (typeof EVM_BRIDGE_EVENT_TYPES)[number]
 
 /**
@@ -46,7 +50,9 @@ export const EVM_USER_LEDGER_EVENT_TYPES = [
   'agent_send',
 ] as const
 
-/** Allowed `event_type` literal union for `/evm/user/{address}/ledger-events`. */
+/**
+ * Allowed `event_type` literal union for `/evm/user/{address}/ledger-events`.
+ */
 export type EvmUserLedgerEventType = (typeof EVM_USER_LEDGER_EVENT_TYPES)[number]
 
 // -----------------------------------------------------------------------------
@@ -99,7 +105,9 @@ export interface EvmBlock {
   readonly system_tx_count: number
 }
 
-/** Observed `tx_type` literal. Treated as an open string union for forward-compat. */
+/**
+ * Observed `tx_type` literal. Treated as an open string union for forward-compat.
+ */
 export type EvmTxType = 'Eip1559' | (string & {})
 
 /**
@@ -337,7 +345,9 @@ export interface EvmStatsDailyParams {
   readonly days?: number
 }
 
-/** Params for `GET /evm/blocks`. Offset pagination, `limit` capped at 1000. */
+/**
+ * Params for `GET /evm/blocks`. Offset pagination, `limit` capped at 1000.
+ */
 export interface EvmBlocksParams {
   /** Inclusive lower bound. */
   readonly startBlock?: number
@@ -377,7 +387,9 @@ export interface EvmTransactionsParams {
   readonly offset?: number
 }
 
-/** Params for `GET /evm/logs`. Offset pagination, `limit` capped at 1000. */
+/**
+ * Params for `GET /evm/logs`. Offset pagination, `limit` capped at 1000.
+ */
 export interface EvmLogsParams {
   readonly address?: Address
   readonly topic0?: Hex

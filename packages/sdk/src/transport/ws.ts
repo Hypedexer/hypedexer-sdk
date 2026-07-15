@@ -72,16 +72,32 @@ interface Subscription {
   readonly user?: string
 }
 
+/**
+ * Payload for the `'reconnect'` event. `attempt` is the 1-based reconnect
+ * attempt counter, which resets after the connection stays open past the
+ * stability threshold.
+ */
 export interface WSReconnectInfo {
   readonly attempt: number
 }
 
+/**
+ * Payload for the `'close'` event, carrying the WebSocket close `code` and
+ * `reason` text when the peer provides them.
+ */
 export interface WSCloseInfo {
   readonly code?: number
   readonly reason?: string
 }
 
-// Per-event handler shapes — used by the typed `on()` overloads below.
+/**
+ * Maps each {@link WSClient} event name to its listener signature.
+ *
+ * @remarks
+ * Backs the typed `on()` / `off()` overloads: channel events receive the
+ * normalized {@link WSMessage} for that channel, while `'error'`,
+ * `'reconnect'`, `'open'`, and `'close'` receive their respective payloads.
+ */
 export type WSEventHandlers = {
   completed_trades: (msg: WSMessage<'completed_trades'>) => void
   fills_spot: (msg: WSMessage<'fills_spot'>) => void
@@ -94,6 +110,10 @@ export type WSEventHandlers = {
   close: (info: WSCloseInfo) => void
 }
 
+/**
+ * Union of every event name accepted by {@link WSClient.on} and
+ * {@link WSClient.off}; the key set of {@link WSEventHandlers}.
+ */
 export type WSEvent = keyof WSEventHandlers
 
 // Loose handler shape used for internal listener storage. The typed `on()`

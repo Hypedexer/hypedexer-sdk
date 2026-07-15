@@ -1,7 +1,19 @@
 import type { Page } from '../types/common.js'
 
+/**
+ * The pagination strategy an endpoint uses.
+ *
+ * @remarks
+ * `'cursor'` follows `meta.nextCursor`, `'offset'` advances a numeric
+ * offset by the page limit, `'timeWindow'` walks backward using the oldest
+ * row's time as the next `endTime`, and `'none'` yields a single page.
+ */
 export type PaginationKind = 'cursor' | 'offset' | 'timeWindow' | 'none'
 
+/**
+ * Per-endpoint configuration for {@link iterate}, selecting the pagination
+ * strategy and its tuning parameters.
+ */
 export interface PaginationContext {
   kind: PaginationKind
   limit?: number
@@ -11,6 +23,11 @@ export interface PaginationContext {
   timeKey?: string
 }
 
+/**
+ * A function that fetches one {@link Page} of `T` for the given request
+ * params `P`. {@link iterate} calls it repeatedly with updated params to walk
+ * every page.
+ */
 export type PageFetcher<T, P> = (params: P) => Promise<Page<T>>
 
 function isPageEmpty<T>(page: Page<T>): boolean {

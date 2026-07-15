@@ -24,7 +24,9 @@ export type DateOnly = string
  */
 export type TopTraderSort = 'pnl_pos' | 'pnl_neg' | 'volume' | 'trades'
 
-/** Runtime allowlist matched against {@link TopTraderSort} for client-side enum validation. */
+/**
+ * Runtime allowlist matched against {@link TopTraderSort} for client-side enum validation.
+ */
 export const TOP_TRADER_SORTS = ['pnl_pos', 'pnl_neg', 'volume', 'trades'] as const
 
 /**
@@ -37,6 +39,9 @@ export interface KpiCard<T = number> {
   readonly variationPct: number | null
 }
 
+/**
+ * One trader row of the `topTraders24h` leaderboard.
+ */
 export interface TopTraderEntry {
   readonly user: Address
   readonly tradeCount: number
@@ -46,6 +51,9 @@ export interface TopTraderEntry {
   readonly totalPnl: number
 }
 
+/**
+ * Spot, perp-USDC, and combined trading fees over the last 24h.
+ */
 export interface TotalFees24h {
   readonly feesSpot: number
   readonly feesPerpUsdc: number
@@ -53,16 +61,24 @@ export interface TotalFees24h {
   readonly totalFees: number
 }
 
-/** Count of unique active addresses in the last 24h with prior-day variation. */
+/**
+ * Count of unique active addresses in the last 24h with prior-day variation.
+ */
 export type ActiveTraders24h = KpiCard<number>
 
-/** Total trading volume (USD) in the last 24h with prior-day variation. */
+/**
+ * Total trading volume (USD) in the last 24h with prior-day variation.
+ */
 export type TradingVolume24h = KpiCard<number>
 
-/** Total fill count in the last 24h with prior-day variation. */
+/**
+ * Total fill count in the last 24h with prior-day variation.
+ */
 export type TotalFills24h = KpiCard<number>
 
-/** One point of the 10-day daily-volume series. Items are sorted oldest → newest. */
+/**
+ * One point of the 10-day daily-volume series. Items are sorted oldest → newest.
+ */
 export interface DailyVolumePoint {
   readonly date: DateOnly
   readonly volume: number
@@ -78,13 +94,18 @@ export interface DailyPnlEntry {
   readonly pnl: number
 }
 
-/** Per-coin breakdown of a user's volume + fill count over the lookback window. */
+/**
+ * Per-coin breakdown of a user's volume + fill count over the lookback window.
+ */
 export interface CoinDistributionEntry {
   readonly coin: Coin
   readonly volume: number
   readonly fills: number
 }
 
+/**
+ * Query params for the `topTraders24h` leaderboard request.
+ */
 export interface TopTradersParams {
   /** See {@link TopTraderSort}. Defaults to server default (`pnl_pos`). */
   readonly sort?: TopTraderSort
@@ -92,11 +113,17 @@ export interface TopTradersParams {
   readonly limit?: number
 }
 
+/**
+ * Query params for the 10-day daily-volume series request.
+ */
 export interface DailyVolumeParams {
   /** Optional address to scope the series to a single trader. */
   readonly user?: Address
 }
 
+/**
+ * Query params for a user's per-coin distribution request.
+ */
 export interface CoinDistributionParams {
   /**
    * Required by the server (422 when missing). SDK additionally validates the

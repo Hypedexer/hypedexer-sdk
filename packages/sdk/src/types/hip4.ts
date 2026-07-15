@@ -7,7 +7,9 @@ import type { Address, Coin, Hex, Side } from './common.js'
  */
 export type Hip4IsoTimestamp = string
 
-/** Bare `YYYY-MM-DD` (used on `Hip4Fee.date`). Use `parseTimestamp(value, 'date')`. */
+/**
+ * Bare `YYYY-MM-DD` (used on `Hip4Fee.date`). Use `parseTimestamp(value, 'date')`.
+ */
 export type Hip4DateOnly = string
 
 /**
@@ -23,13 +25,19 @@ export type Hip4Expiry = string
  */
 export type Hip4Class = 'priceBinary' | 'priceBucket' | ''
 
-/** Runtime allowlist used to validate the `class` filter on `/hip4/markets`. */
+/**
+ * Runtime allowlist used to validate the `class` filter on `/hip4/markets`.
+ */
 export const HIP4_CLASSES = ['priceBinary', 'priceBucket', ''] as const
 
-/** `/hip4/analytics?interval=` bucket size. */
+/**
+ * `/hip4/analytics?interval=` bucket size.
+ */
 export type Hip4Interval = '1h' | '4h' | '1d'
 
-/** Runtime allowlist used to client-side-validate the `interval` filter. */
+/**
+ * Runtime allowlist used to client-side-validate the `interval` filter.
+ */
 export const HIP4_INTERVALS = ['1h', '4h', '1d'] as const
 
 /**
@@ -39,7 +47,9 @@ export const HIP4_INTERVALS = ['1h', '4h', '1d'] as const
  */
 export type Hip4ActionType = 'Split' | 'Merge' | 'Negate'
 
-/** Runtime allowlist for {@link Hip4ActionType}. */
+/**
+ * Runtime allowlist for {@link Hip4ActionType}.
+ */
 export const HIP4_ACTION_TYPES = ['Split', 'Merge', 'Negate'] as const
 
 // ---------------------------------------------------------------------------
@@ -83,7 +93,9 @@ export interface Hip4Outcome {
   readonly unique_users: number
 }
 
-/** `/hip4/outcomes` returns the same record as `/hip4/markets` (verified alias). */
+/**
+ * `/hip4/outcomes` returns the same record as `/hip4/markets` (verified alias).
+ */
 export type Hip4Market = Hip4Outcome
 
 /**
@@ -211,7 +223,9 @@ export interface Hip4AnalyticsRowByCoin extends Hip4AnalyticsRowAggregate {
   readonly coin: Coin
 }
 
-/** Discriminated union over the two analytics row shapes. */
+/**
+ * Discriminated union over the two analytics row shapes.
+ */
 export type Hip4AnalyticsRow = Hip4AnalyticsRowAggregate | Hip4AnalyticsRowByCoin
 
 /**
@@ -253,9 +267,14 @@ export interface Hip4MarketsParams {
   readonly offset?: number
 }
 
-/** `/hip4/outcomes` request params — alias for {@link Hip4MarketsParams}. */
+/**
+ * `/hip4/outcomes` request params — alias for {@link Hip4MarketsParams}.
+ */
 export type Hip4OutcomesParams = Hip4MarketsParams
 
+/**
+ * `/hip4/questions` request params.
+ */
 export interface Hip4QuestionsParams {
   readonly questionId?: number
   /** 1..1000 (server cap). */
@@ -263,6 +282,9 @@ export interface Hip4QuestionsParams {
   readonly offset?: number
 }
 
+/**
+ * `/hip4/outcome-tokens` request params. The `coin=@<spot_index>` filter is honored server-side.
+ */
 export interface Hip4OutcomeTokensParams {
   readonly outcomeId?: number
   /** `@<spot_index>` form (e.g. `"@1"`). */
@@ -272,6 +294,9 @@ export interface Hip4OutcomeTokensParams {
   readonly offset?: number
 }
 
+/**
+ * `/hip4/fills` request params.
+ */
 export interface Hip4FillsParams {
   readonly user?: Address
   /** `#<outcome_id>` form (e.g. `"#290"`). */
@@ -284,6 +309,9 @@ export interface Hip4FillsParams {
   readonly offset?: number
 }
 
+/**
+ * `/hip4/fees` request params.
+ */
 export interface Hip4FeesParams {
   readonly user?: Address
   readonly coin?: Coin
@@ -294,6 +322,9 @@ export interface Hip4FeesParams {
   readonly offset?: number
 }
 
+/**
+ * `/hip4/settlements` request params.
+ */
 export interface Hip4SettlementsParams {
   readonly outcomeId?: number
   readonly startTime?: TimeInput
@@ -303,6 +334,9 @@ export interface Hip4SettlementsParams {
   readonly offset?: number
 }
 
+/**
+ * `/hip4/analytics` request params.
+ */
 export interface Hip4AnalyticsParams {
   readonly interval?: Hip4Interval
   /**
@@ -318,6 +352,14 @@ export interface Hip4AnalyticsParams {
   readonly limit?: number
 }
 
+/**
+ * `/hip4/user-actions` request params.
+ *
+ * @remarks
+ * `actionType` is validated client-side against {@link HIP4_ACTION_TYPES}; the
+ * endpoint returns `status: not_yet_live` and bypasses validation upstream
+ * (ENDPOINTS.md HIP-4 batch-5).
+ */
 export interface Hip4UserActionsParams {
   readonly actionType?: Hip4ActionType
   readonly user?: Address
