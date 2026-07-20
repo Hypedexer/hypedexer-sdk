@@ -184,11 +184,13 @@ export type {
 } from './types/user.js'
 
 export type {
+  CompletedTradeGetParams,
   CompletedTradesListParams,
   CompletedTradesSummaryParams,
   Direction,
   LeverageType,
   Trade,
+  TradeDetail,
   TradeFill,
   TradeSortBy,
   TradeSortDir,

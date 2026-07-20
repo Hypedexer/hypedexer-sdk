@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { ValidationError } from '../../src/errors/index.js'
+import { NotFoundError, ValidationError } from '../../src/errors/index.js'
 import { CompletedTradesResource } from '../../src/resources/completed-trades.js'
 import { HttpClient } from '../../src/transport/HttpClient.js'
 
@@ -233,6 +233,62 @@ describe('CompletedTradesResource.summary', () => {
     const { resource, fetchMock } = makeClient(() => mockResponse(200, '{}'))
     await expect(resource.summary({ user: '0xbad' })).rejects.toBeInstanceOf(ValidationError)
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('CompletedTradesResource.get', () => {
+  it('hits /completed-trades/{trade_id}, omits include_fills by default, and unwraps the single trade', async () => {
+    const { resource, calls } = makeClient(({ url }) => {
+      expect(url.pathname).toBe('/completed-trades/trade_BTC_0xabcdef01')
+      expect(url.searchParams.has('include_fills')).toBe(false)
+      return mockResponse(
+        200,
+        JSON.stringify({ success: true, data: TRADE_ROW, execution_time_ms: null }),
+      )
+    })
+
+    const res = await resource.get('trade_BTC_0xabcdef01')
+    expect(res.data.tradeId).toBe('trade_BTC_0xabcdef01')
+    expect(res.data.coin).toBe('BTC')
+    expect(res.data.fills).toBeUndefined()
+    expect(res.meta.family).toBe('apiResponse')
+    const headers = calls[0]?.init?.headers as Record<string, string>
+    expect(headers['X-API-Key']).toBe('test-key')
+  })
+
+  it('sends include_fills=true and surfaces the embedded fills when requested', async () => {
+    const { resource } = makeClient(({ url }) => {
+      expect(url.pathname).toBe('/completed-trades/trade_BTC_0xabcdef01')
+      expect(url.searchParams.get('include_fills')).toBe('true')
+      return mockResponse(
+        200,
+        JSON.stringify({
+          success: true,
+          data: { ...TRADE_ROW, fills: [TRADE_FILL_ROW] },
+        }),
+      )
+    })
+
+    const res = await resource.get('trade_BTC_0xabcdef01', { includeFills: true })
+    expect(res.data.fills).toHaveLength(1)
+    expect(res.data.fills?.[0]?.feeToken).toBe('USDC')
+  })
+
+  it('URL-encodes `:` in tradeId path segment as %3A (HIP-3 coin segment safety)', async () => {
+    const { resource } = makeClient(({ url }) => {
+      expect(url.pathname).toContain('%3A')
+      expect(url.pathname.endsWith('/fills')).toBe(false)
+      return mockResponse(200, JSON.stringify({ success: true, data: TRADE_ROW }))
+    })
+    await resource.get('trade_xyz:EWY_0xabcdef01')
+  })
+
+  it('propagates NotFoundError on a 404 for an unknown trade id (real 404, not the fills quirk)', async () => {
+    const { resource } = makeClient(({ url }) => {
+      expect(url.pathname).toBe('/completed-trades/not-a-real-id')
+      return mockResponse(404, JSON.stringify({ detail: 'trade not found' }))
+    })
+    await expect(resource.get('not-a-real-id')).rejects.toBeInstanceOf(NotFoundError)
   })
 })
 

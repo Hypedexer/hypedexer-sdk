@@ -7,10 +7,12 @@ import type { HttpClient } from '../transport/HttpClient.js'
 import { unwrap, unwrapSingle } from '../transport/envelopes.js'
 import type { Page, Single } from '../types/common.js'
 import type {
+  CompletedTradeGetParams,
   CompletedTradesListParams,
   CompletedTradesSummaryParams,
   Direction,
   Trade,
+  TradeDetail,
   TradeFill,
   TradeSortBy,
   TradeSortDir,
@@ -190,6 +192,39 @@ export class CompletedTradesResource {
       query: buildSummaryQuery(params),
     })
     return unwrapSingle<TradesSummary>(raw, 'apiResponse')
+  }
+
+  /**
+   * `GET /completed-trades/{trade_id}`: a single completed trade by its id.
+   *
+   * Unlike `/{trade_id}/fills` (§I #15), this endpoint returns a real `404`
+   * for an unknown id, which the transport maps to {@link NotFoundError}. The
+   * SDK does not swallow it.
+   *
+   * @param tradeId - Composite id of the trade (e.g. `"trade_BTC_0xabcdef01"`).
+   *   May contain `:` when the coin is HIP-3 (e.g. `"trade_xyz:EWY_0xabcdef01"`);
+   *   the SDK URL-encodes `:` as `%3A` via {@link encodeSegment} so intermediate
+   *   proxies do not mis-parse it as a scheme/host delimiter.
+   * @param params - Optional embedding controls.
+   * @param params.includeFills - When `true`, the response embeds the trade's
+   *   fills as {@link TradeDetail.fills} (`?include_fills=true`). Defaults to `false`.
+   * @returns `Single<TradeDetail>`; `data.fills` is present only when `includeFills` is `true`.
+   * @throws {NotFoundError} when the `tradeId` is unknown (upstream 404).
+   * @throws {ServerError} on upstream 5xx.
+   * @throws {NetworkError} on transport failure or timeout.
+   * @see PLAN.md §I bug #3
+   * @example
+   * ```ts
+   * const { data } = await sdk.completedTrades.get('trade_BTC_0xabcdef01', { includeFills: true })
+   * console.log(data.pnlRealized, data.fills?.length)
+   * ```
+   */
+  async get(tradeId: string, params: CompletedTradeGetParams = {}): Promise<Single<TradeDetail>> {
+    const path = `/completed-trades/${encodeSegment(tradeId)}`
+    const query: Record<string, string | number | boolean | null | undefined> = {}
+    if (params.includeFills !== undefined) query['include_fills'] = params.includeFills
+    const raw = await this.http.request<unknown>({ path, query })
+    return unwrapSingle<TradeDetail>(raw, 'apiResponse')
   }
 
   /**
