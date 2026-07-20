@@ -59,6 +59,7 @@ Legend:
 |---|---|---|---|---|---|---|---|
 | GET `/completed-trades/` | API | offset | iso-snake | **none → SDK 100** | — | ⚠ no server cap (70MB risk); `sort_by=bogus` silent fallback; `execution_time_ms` null | — |
 | GET `/completed-trades/summary` | API | none | iso-snake | — | — | ⚠ `execution_time_ms` null; `avg_pnl_pct` % units; `avg_duration_s` inflated | `fillsSummary` |
+| GET `/completed-trades/{trade_id}` | API | single | — | — | path `trade_id` (URL-encode `:`) | opt `include_fills` embeds fills (shifted keys dropped); bogus id → real 404 | — |
 | GET `/completed-trades/{trade_id}/fills` | API | none-list | — | — | path `trade_id` (URL-encode `:`) | ⚠ `feeUsdc`/`typeTrade` shifted keys (drop); bogus id → 200 empty | `fillsByTradeId` |
 
 ## Liquidations (batch-3) — `src/resources/liquidations.ts`
@@ -201,7 +202,7 @@ Legend:
 
 ## Totals
 
-- **REST endpoints**: 88 (6 fills + 5 analytics + 8 overview + 5 users + 3 completed-trades + 2 liquidations + 18 hip3 + 10 hip4 + 6 builders + 5 twaps + 3 funding + 6 vaults + 4 spot + 16 evm + 2 gossip) — `/hip4/markets` and `/hip4/outcomes` count as 2 distinct endpoints (aliases).
+- **REST endpoints**: 89 (6 fills + 5 analytics + 8 overview + 5 users + 4 completed-trades + 2 liquidations + 18 hip3 + 10 hip4 + 6 builders + 5 twaps + 3 funding + 6 vaults + 4 spot + 16 evm + 2 gossip) — `/hip4/markets` and `/hip4/outcomes` count as 2 distinct endpoints (aliases).
 - **Dispatcher**: 1 (`POST /info`, verified 19 types).
 - **WebSocket**: 5 channels on 1 endpoint.
 

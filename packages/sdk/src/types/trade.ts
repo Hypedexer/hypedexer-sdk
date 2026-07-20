@@ -98,6 +98,27 @@ export interface TradesSummary {
 }
 
 /**
+ * A single completed trade optionally enriched with its fills.
+ *
+ * Returned by `GET /completed-trades/{trade_id}`. The `fills` array is present
+ * only when the request was made with `includeFills: true`; otherwise the field
+ * is absent. Embedded fills carry the same shifted-key quirk as `/fills` rows
+ * (PLAN.md §I #3), so {@link TradeFill} already omits `feeUsdc` / `typeTrade`.
+ */
+export interface TradeDetail extends Trade {
+  /** Present only when `includeFills: true` was passed. */
+  readonly fills?: ReadonlyArray<TradeFill>
+}
+
+/**
+ * Query parameters for `GET /completed-trades/{trade_id}`.
+ */
+export interface CompletedTradeGetParams {
+  /** Embed the trade's fills in the response (`?include_fills=true`). Default false. */
+  readonly includeFills?: boolean
+}
+
+/**
  * A fill row attached to a completed trade.
  *
  * Note: the wire response contains two SHIFTED keys (`feeUsdc: "perp"` and
