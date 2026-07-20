@@ -219,10 +219,7 @@ export class CompletedTradesResource {
    * console.log(data.pnlRealized, data.fills?.length)
    * ```
    */
-  async get(
-    tradeId: string,
-    params: CompletedTradeGetParams = {},
-  ): Promise<Single<TradeDetail>> {
+  async get(tradeId: string, params: CompletedTradeGetParams = {}): Promise<Single<TradeDetail>> {
     const path = `/completed-trades/${encodeSegment(tradeId)}`
     const query: Record<string, string | number | boolean | null | undefined> = {}
     if (params.includeFills !== undefined) query['include_fills'] = params.includeFills
