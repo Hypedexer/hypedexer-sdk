@@ -203,7 +203,7 @@ Legend:
 ## Totals
 
 - **REST endpoints**: 89 (6 fills + 5 analytics + 8 overview + 5 users + 4 completed-trades + 2 liquidations + 18 hip3 + 10 hip4 + 6 builders + 5 twaps + 3 funding + 6 vaults + 4 spot + 16 evm + 2 gossip) — `/hip4/markets` and `/hip4/outcomes` count as 2 distinct endpoints (aliases).
-- **Dispatcher**: 1 (`POST /info`, verified 19 types).
+- **Dispatcher**: 1 (`POST /info`, verified 20 types).
 - **WebSocket**: 5 channels on 1 endpoint.
 
 **Grand total surface area**: 94 REST + 1 dispatcher + 5 WS channels = 100 entry points.

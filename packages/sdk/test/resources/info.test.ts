@@ -228,6 +228,50 @@ describe('InfoResource.info — accountOverview', () => {
 })
 
 // -----------------------------------------------------------------------------
+// orderStatus - user required + validated, oid/cloid forwarded, unwraps .data
+// -----------------------------------------------------------------------------
+
+describe('InfoResource.info - orderStatus', () => {
+  it('validates user and forwards oid, unwrapping APIResponse.data', async () => {
+    const status = { order: { oid: 12345, status: 'filled' }, statusTimestamp: 1715000000000 }
+    const { http, fetchMock } = buildClient((_url, init) => {
+      const body = readBody(init)
+      expect(body['type']).toBe('orderStatus')
+      expect(body['user']).toBe(VALID_ADDRESS)
+      expect(body['oid']).toBe(12345)
+      expect('cloid' in body).toBe(false)
+      return mockResponse({ success: true, data: status })
+    })
+    const info = new InfoResource(http)
+    const result = await info.info({ type: 'orderStatus', user: VALID_ADDRESS, oid: 12345 })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(result).toEqual(status)
+  })
+
+  it('forwards cloid when supplied instead of oid', async () => {
+    const cloid = '0x00000000000000000000000000000001'
+    const { http, fetchMock } = buildClient((_url, init) => {
+      const body = readBody(init)
+      expect(body).toEqual({ type: 'orderStatus', user: VALID_ADDRESS, cloid })
+      return mockResponse({ success: true, data: null })
+    })
+    const info = new InfoResource(http)
+    const result = await info.info({ type: 'orderStatus', user: VALID_ADDRESS, cloid })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(result).toBeNull()
+  })
+
+  it('rejects a bad address synchronously without making a fetch call (bug #14)', async () => {
+    const { http, fetchMock } = buildClient(() => mockResponse({ success: true, data: null }))
+    const info = new InfoResource(http)
+    await expect(
+      info.info({ type: 'orderStatus', user: BAD_ADDRESS as Address, oid: 1 }),
+    ).rejects.toBeInstanceOf(ValidationError)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+// -----------------------------------------------------------------------------
 // PLAN.md §I bug #11 — currentFundingRates + vaultList unwrap
 // -----------------------------------------------------------------------------
 

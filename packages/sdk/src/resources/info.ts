@@ -22,15 +22,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * {@link TimeInput} values on known time keys, and runs the small set of
  * client-side validations the dispatcher needs:
  *
- *   - PLAN.md §I bug #14: `accountOverview` / `tradeHistory` both proxy to
- *     `/users/{addr}/...`, where bad addresses silently return zeroed
- *     payloads. The address is rejected client-side instead.
+ *   - PLAN.md §I bug #14: `accountOverview` / `tradeHistory` / `orderStatus`
+ *     all carry a required `user` address, where bad addresses silently
+ *     return zeroed payloads upstream. The address is rejected client-side
+ *     instead.
  *   - PLAN.md §I bug #4: `liqHistory` with `order: 'asc'` is documented as
  *     producing a corrupt cursor — flagged in the type's JSDoc but allowed
  *     here (caller is using the escape-hatch and may want page 1 only).
  */
 function buildBody(req: InfoRequest): Record<string, unknown> {
-  if (req.type === 'accountOverview' || req.type === 'tradeHistory') {
+  if (req.type === 'accountOverview' || req.type === 'tradeHistory' || req.type === 'orderStatus') {
     assertAddress(req.user, 'user')
   }
 
@@ -119,8 +120,8 @@ export class InfoResource {
    *
    * @param req - typed discriminated-union request keyed by `type`.
    * @returns the inner `.data` payload, narrowed via {@link InfoResultMap}.
-   * @throws ValidationError when `accountOverview`/`tradeHistory` carry an
-   *   invalid `user` address, or when the server rejects a bad type
+   * @throws ValidationError when `accountOverview`/`tradeHistory`/`orderStatus`
+   *   carry an invalid `user` address, or when the server rejects a bad type
    *   (mapped from `400 {error: string}`).
    * @throws ServerError when `spotTokenList`/`spotPairList` hit the upstream
    *   500 (PLAN.md §I #1).

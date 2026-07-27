@@ -64,6 +64,8 @@ export interface InfoResultMap {
   tradeHistory: unknown[]
   /** No first-class SDK type yet — `/hip3/priority-fees/gossip/status`. */
   gossipLiveStatus: unknown
+  /** No first-class SDK type yet - single order-status lookup on `POST /info`. */
+  orderStatus: unknown
 }
 
 /**
@@ -203,6 +205,21 @@ export interface InfoFillsByTradeIdBody {
   readonly tradeId: string
 }
 
+/**
+ * Body params for `orderStatus` - single order-status lookup on `POST /info`.
+ *
+ * `user` is required and validated client-side (bad addresses return zeroed
+ * sentinels upstream, PLAN.md §I bug #14). Pass exactly one of `oid`
+ * (exchange order id) or `cloid` (client order id) to identify the order.
+ */
+export interface InfoOrderStatusBody {
+  readonly user: Address
+  /** Exchange-assigned order id. */
+  readonly oid?: number
+  /** Client-assigned order id (hex string). */
+  readonly cloid?: string
+}
+
 // -----------------------------------------------------------------------------
 // Discriminated union of all valid /info request payloads.
 // -----------------------------------------------------------------------------
@@ -239,3 +256,4 @@ export type InfoRequest =
   | ({ readonly type: 'vaultList' } & InfoVaultListBody)
   | ({ readonly type: 'tradeHistory' } & InfoUserBody)
   | { readonly type: 'gossipLiveStatus' }
+  | ({ readonly type: 'orderStatus' } & InfoOrderStatusBody)
