@@ -66,6 +66,61 @@ export interface InfoResultMap {
   gossipLiveStatus: unknown
   /** No first-class SDK type yet - single order-status lookup on `POST /info`. */
   orderStatus: unknown
+  // ---------------------------------------------------------------------------
+  // Additive batch from the 2026-08-03 upstream drift (issue #12). Upstream
+  // ships a request schema for each type but models no typed response (the
+  // `POST /info` response is the generic APIResponse envelope with an untyped
+  // `data`). Following the convention for un-typed handlers above, each maps
+  // to `unknown` until a first-class response type is added by hand against a
+  // live payload. The request bodies ARE fully specified below, so callers
+  // still get typed, validated inputs.
+  // ---------------------------------------------------------------------------
+  /** Builder fills for a builder address. No typed response yet (issue #12). */
+  builderFills: unknown
+  /** Builder fills within a time range. No typed response yet (issue #12). */
+  builderFillsByTime: unknown
+  /** Builder orders within a time range. No typed response yet (issue #12). */
+  builderOrdersByTime: unknown
+  /** OHLCV candle snapshot, HL official `{type, req}` form. No typed response yet (issue #12). */
+  candleSnapshot: unknown
+  /** Global staking summary across validators. No typed response yet (issue #12). */
+  globalStakingSummary: unknown
+  /** Latest validator snapshot (stake, APR, uptime, jailed). No typed response yet (issue #12). */
+  stakingOverview: unknown
+  /** Validator APR history. No typed response yet (issue #12). */
+  validatorAprHistory: unknown
+  /** Historical orders for a user. No typed response yet (issue #12). */
+  historicalOrders: unknown
+  /** Latest depth/liquidity sample per coin. No typed response yet (issue #12). */
+  marketLiquidity: unknown
+  /** Historical depth/liquidity samples. No typed response yet (issue #12). */
+  marketLiquidityHistory: unknown
+  /** Open interest history for a coin. No typed response yet (issue #12). */
+  openInterestHistory: unknown
+  /** Oracle price history for a coin. No typed response yet (issue #12). */
+  oraclePriceHistory: unknown
+  /** Oracle price history within a time range. No typed response yet (issue #12). */
+  oraclePriceHistoryByTime: unknown
+  /** Historical slippage estimates. No typed response yet (issue #12). */
+  slippageHistory: unknown
+  /** TP/SL order book for a coin. No typed response yet (issue #12). */
+  tpslBook: unknown
+  /** Non-funding ledger updates for a user. No typed response yet (issue #12). */
+  userNonFundingLedgerUpdates: unknown
+  /** TWAP slice fills for a user. No typed response yet (issue #12). */
+  userTwapSliceFills: unknown
+  /** TWAP order statuses within a time range. No typed response yet (issue #12). */
+  userTwapStatusesByTime: unknown
+  /** TWAP order summaries for a user. No typed response yet (issue #12). */
+  userTwapSummaries: unknown
+  /** Account portfolio snapshot. No typed response yet (issue #12). */
+  portfolio: unknown
+  /** Alias of `portfolio` (same payload). No typed response yet (issue #12). */
+  portfolioState: unknown
+  /** Alias of `fundingRateHistory` (coin funding-rate history). No typed response yet (issue #12). */
+  fundingHistory: unknown
+  /** Alias of `accountFunding` (per-user funding). No typed response yet (issue #12). */
+  userFunding: unknown
 }
 
 /**
@@ -221,6 +276,122 @@ export interface InfoOrderStatusBody {
 }
 
 // -----------------------------------------------------------------------------
+// Additive batch bodies (issue #12).
+//
+// Wire keys are camelCase with epoch-millis `startTime` / `endTime` integers
+// (NOT the snake-case `start_time` / `end_time` used by the older fills/liq
+// bodies), so they pass through `buildBody` verbatim without ISO encoding. Time
+// fields are therefore typed as `number` (epoch millis), not {@link TimeInput}.
+// -----------------------------------------------------------------------------
+
+/**
+ * Shared `{coin, startTime?, endTime?, limit?}` body (epoch-millis times).
+ * Backs `marketLiquidityHistory`, `openInterestHistory`, `oraclePriceHistory`,
+ * `slippageHistory`, and the `fundingHistory` alias.
+ */
+export interface InfoCoinHistoryBody {
+  readonly coin: Coin
+  readonly startTime?: number
+  readonly endTime?: number
+  readonly limit?: number
+}
+
+/** `{coin, startTime, endTime?, limit?}` body with a required start time. */
+export interface InfoCoinHistoryFromBody {
+  readonly coin: Coin
+  readonly startTime: number
+  readonly endTime?: number
+  readonly limit?: number
+}
+
+/**
+ * Shared `{user, startTime?, endTime?, limit?}` body (epoch-millis times).
+ * Backs `userNonFundingLedgerUpdates`, `userTwapSliceFills`,
+ * `userTwapSummaries`, and the `userFunding` alias.
+ */
+export interface InfoUserHistoryBody {
+  readonly user: Address
+  readonly startTime?: number
+  readonly endTime?: number
+  readonly limit?: number
+}
+
+/** `{user, startTime, endTime?, limit?}` body with a required start time. */
+export interface InfoUserHistoryFromBody {
+  readonly user: Address
+  readonly startTime: number
+  readonly endTime?: number
+  readonly limit?: number
+}
+
+/** Body for `builderFills` - `{builder, startTime?, endTime?, limit?}`. */
+export interface InfoBuilderFillsBody {
+  readonly builder: Address
+  readonly startTime?: number
+  readonly endTime?: number
+  readonly limit?: number
+}
+
+/**
+ * Body for `builderFillsByTime` / `builderOrdersByTime` - `{builder,
+ * startTime, endTime?, limit?}` with a required start time.
+ */
+export interface InfoBuilderFromBody {
+  readonly builder: Address
+  readonly startTime: number
+  readonly endTime?: number
+  readonly limit?: number
+}
+
+/**
+ * Inner request for `candleSnapshot` - HL official
+ * `{coin, interval?, startTime, endTime?}`. `startTime` / `endTime` are
+ * epoch-millis integers.
+ */
+export interface InfoCandleReq {
+  readonly coin: Coin
+  readonly interval?: string
+  readonly startTime: number
+  readonly endTime?: number
+}
+
+/** Body for `candleSnapshot` - HL official `{type, req}` envelope (PLAN.md §M). */
+export interface InfoCandleSnapshotBody {
+  readonly req: InfoCandleReq
+}
+
+/** Body for `marketLiquidity` - optional single-coin filter. */
+export interface InfoMarketLiquidityBody {
+  readonly coin?: Coin
+}
+
+/** Body for `validatorAprHistory` - optional validator filter + time range. */
+export interface InfoValidatorAprHistoryBody {
+  readonly validator?: string
+  readonly startTime?: number
+  readonly endTime?: number
+  readonly limit?: number
+}
+
+/** Body for `historicalOrders` - `{user, limit?, lookbackDays?}`. */
+export interface InfoHistoricalOrdersBody {
+  readonly user: Address
+  readonly limit?: number
+  readonly lookbackDays?: number
+}
+
+/** Body for `tpslBook` - `{coin, lookbackDays?}`. */
+export interface InfoTpslBookBody {
+  readonly coin: Coin
+  readonly lookbackDays?: number
+}
+
+/** Body for `portfolio` / `portfolioState` - `{user}`. */
+export interface InfoPortfolioBody {
+  readonly user: Address
+}
+
+// -----------------------------------------------------------------------------
 // Discriminated union of all valid /info request payloads.
 // -----------------------------------------------------------------------------
 
@@ -257,3 +428,27 @@ export type InfoRequest =
   | ({ readonly type: 'tradeHistory' } & InfoUserBody)
   | { readonly type: 'gossipLiveStatus' }
   | ({ readonly type: 'orderStatus' } & InfoOrderStatusBody)
+  // Additive batch (issue #12) - request-typed, response `unknown` for now.
+  | ({ readonly type: 'builderFills' } & InfoBuilderFillsBody)
+  | ({ readonly type: 'builderFillsByTime' } & InfoBuilderFromBody)
+  | ({ readonly type: 'builderOrdersByTime' } & InfoBuilderFromBody)
+  | ({ readonly type: 'candleSnapshot' } & InfoCandleSnapshotBody)
+  | { readonly type: 'globalStakingSummary' }
+  | { readonly type: 'stakingOverview' }
+  | ({ readonly type: 'validatorAprHistory' } & InfoValidatorAprHistoryBody)
+  | ({ readonly type: 'historicalOrders' } & InfoHistoricalOrdersBody)
+  | ({ readonly type: 'marketLiquidity' } & InfoMarketLiquidityBody)
+  | ({ readonly type: 'marketLiquidityHistory' } & InfoCoinHistoryBody)
+  | ({ readonly type: 'openInterestHistory' } & InfoCoinHistoryBody)
+  | ({ readonly type: 'oraclePriceHistory' } & InfoCoinHistoryBody)
+  | ({ readonly type: 'oraclePriceHistoryByTime' } & InfoCoinHistoryFromBody)
+  | ({ readonly type: 'slippageHistory' } & InfoCoinHistoryBody)
+  | ({ readonly type: 'tpslBook' } & InfoTpslBookBody)
+  | ({ readonly type: 'userNonFundingLedgerUpdates' } & InfoUserHistoryBody)
+  | ({ readonly type: 'userTwapSliceFills' } & InfoUserHistoryBody)
+  | ({ readonly type: 'userTwapStatusesByTime' } & InfoUserHistoryFromBody)
+  | ({ readonly type: 'userTwapSummaries' } & InfoUserHistoryBody)
+  | ({ readonly type: 'portfolio' } & InfoPortfolioBody)
+  | ({ readonly type: 'portfolioState' } & InfoPortfolioBody)
+  | ({ readonly type: 'fundingHistory' } & InfoCoinHistoryBody)
+  | ({ readonly type: 'userFunding' } & InfoUserHistoryBody)

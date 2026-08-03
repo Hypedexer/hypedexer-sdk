@@ -386,3 +386,89 @@ describe('InfoResource.info — bug #21 dispatcher error shape', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
+
+// -----------------------------------------------------------------------------
+// Additive batch (issue #12) - request-typed types dispatch with `unknown` data
+// -----------------------------------------------------------------------------
+
+describe('InfoResource.info - additive batch (issue #12)', () => {
+  it('forwards builderFills with the builder address and returns raw .data', async () => {
+    const payload = [{ builder: VALID_ADDRESS, coin: 'BTC', sz: 1 }]
+    const { http, fetchMock } = buildClient((url, init) => {
+      expect(url.pathname).toBe('/info')
+      const body = readBody(init)
+      expect(body).toEqual({ type: 'builderFills', builder: VALID_ADDRESS, limit: 50 })
+      return mockResponse({ success: true, data: payload })
+    })
+    const info = new InfoResource(http)
+    const result = await info.info({ type: 'builderFills', builder: VALID_ADDRESS, limit: 50 })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(result).toEqual(payload)
+  })
+
+  it('forwards the candleSnapshot HL `req` envelope verbatim', async () => {
+    const req = {
+      coin: 'ETH',
+      interval: '1h',
+      startTime: 1_700_000_000_000,
+      endTime: 1_700_003_600_000,
+    }
+    const { http, fetchMock } = buildClient((_url, init) => {
+      const body = readBody(init)
+      expect(body).toEqual({ type: 'candleSnapshot', req })
+      return mockResponse({ success: true, data: { candles: [] } })
+    })
+    const info = new InfoResource(http)
+    const result = await info.info({ type: 'candleSnapshot', req })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(result).toEqual({ candles: [] })
+  })
+
+  it('passes camelCase epoch-millis startTime/endTime through without ISO encoding', async () => {
+    const { http, fetchMock } = buildClient((_url, init) => {
+      const body = readBody(init)
+      expect(body).toEqual({
+        type: 'userTwapSummaries',
+        user: VALID_ADDRESS,
+        startTime: 1_700_000_000_000,
+        endTime: 1_700_003_600_000,
+        limit: 10,
+      })
+      return mockResponse({ success: true, data: [] })
+    })
+    const info = new InfoResource(http)
+    const result = await info.info({
+      type: 'userTwapSummaries',
+      user: VALID_ADDRESS,
+      startTime: 1_700_000_000_000,
+      endTime: 1_700_003_600_000,
+      limit: 10,
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(result).toEqual([])
+  })
+
+  it('dispatches the portfolioState alias with just {type, user}', async () => {
+    const { http, fetchMock } = buildClient((_url, init) => {
+      const body = readBody(init)
+      expect(body).toEqual({ type: 'portfolioState', user: VALID_ADDRESS })
+      return mockResponse({ success: true, data: { accountValue: '0' } })
+    })
+    const info = new InfoResource(http)
+    const result = await info.info({ type: 'portfolioState', user: VALID_ADDRESS })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(result).toEqual({ accountValue: '0' })
+  })
+
+  it('omits undefined optional keys for marketLiquidity (coin absent)', async () => {
+    const { http, fetchMock } = buildClient((_url, init) => {
+      const body = readBody(init)
+      expect(body).toEqual({ type: 'marketLiquidity' })
+      return mockResponse({ success: true, data: [] })
+    })
+    const info = new InfoResource(http)
+    const result = await info.info({ type: 'marketLiquidity' })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(result).toEqual([])
+  })
+})
