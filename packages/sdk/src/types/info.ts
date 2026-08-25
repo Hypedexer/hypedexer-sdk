@@ -121,6 +121,15 @@ export interface InfoResultMap {
   fundingHistory: unknown
   /** Alias of `accountFunding` (per-user funding). No typed response yet (issue #12). */
   userFunding: unknown
+  // ---------------------------------------------------------------------------
+  // Additive batch from the 2026-08-17 upstream drift (issue #17). Same policy
+  // as the issue #12 batch above: request bodies are fully typed, responses map
+  // to `unknown` until a first-class type is added against a live payload.
+  // ---------------------------------------------------------------------------
+  /** Current testnet upgrade state (version, binary, scheduled freeze). No typed response yet (issue #17). */
+  testnetUpgradeStatus: unknown
+  /** History of detected testnet upgrades, time-range filtered. No typed response yet (issue #17). */
+  testnetUpgrades: unknown
 }
 
 /**
@@ -392,6 +401,22 @@ export interface InfoPortfolioBody {
 }
 
 // -----------------------------------------------------------------------------
+// Additive batch bodies (issue #17). Same camelCase epoch-millis convention as
+// the issue #12 batch above.
+// -----------------------------------------------------------------------------
+
+/**
+ * Body for `testnetUpgrades` - optional time range and page size over the
+ * testnet upgrade history. `startTime` / `endTime` are epoch-millis integers.
+ */
+export interface InfoTestnetUpgradesBody {
+  readonly startTime?: number
+  readonly endTime?: number
+  /** Server default 100, max 1000. */
+  readonly limit?: number
+}
+
+// -----------------------------------------------------------------------------
 // Discriminated union of all valid /info request payloads.
 // -----------------------------------------------------------------------------
 
@@ -452,3 +477,6 @@ export type InfoRequest =
   | ({ readonly type: 'portfolioState' } & InfoPortfolioBody)
   | ({ readonly type: 'fundingHistory' } & InfoCoinHistoryBody)
   | ({ readonly type: 'userFunding' } & InfoUserHistoryBody)
+  // Additive batch (issue #17) - request-typed, response `unknown` for now.
+  | { readonly type: 'testnetUpgradeStatus' }
+  | ({ readonly type: 'testnetUpgrades' } & InfoTestnetUpgradesBody)

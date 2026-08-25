@@ -472,3 +472,58 @@ describe('InfoResource.info - additive batch (issue #12)', () => {
     expect(result).toEqual([])
   })
 })
+
+// -----------------------------------------------------------------------------
+// Additive batch (issue #17) - testnet upgrade request variants
+// -----------------------------------------------------------------------------
+
+describe('InfoResource.info - additive batch (issue #17)', () => {
+  it('forwards testnetUpgradeStatus as just {type} and returns raw .data', async () => {
+    const payload = { version: '1.2.3', binary: 'hl-node', freezeTime: 1_700_000_000_000 }
+    const { http, fetchMock } = buildClient((url, init) => {
+      expect(url.pathname).toBe('/info')
+      const body = readBody(init)
+      expect(body).toEqual({ type: 'testnetUpgradeStatus' })
+      return mockResponse({ success: true, data: payload })
+    })
+    const info = new InfoResource(http)
+    const result = await info.info({ type: 'testnetUpgradeStatus' })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(result).toEqual(payload)
+  })
+
+  it('passes testnetUpgrades camelCase epoch-millis range through without ISO encoding', async () => {
+    const upgrades = [{ version: '1.2.3', time: 1_700_000_000_000 }]
+    const { http, fetchMock } = buildClient((_url, init) => {
+      const body = readBody(init)
+      expect(body).toEqual({
+        type: 'testnetUpgrades',
+        startTime: 1_700_000_000_000,
+        endTime: 1_700_003_600_000,
+        limit: 500,
+      })
+      return mockResponse({ success: true, data: upgrades })
+    })
+    const info = new InfoResource(http)
+    const result = await info.info({
+      type: 'testnetUpgrades',
+      startTime: 1_700_000_000_000,
+      endTime: 1_700_003_600_000,
+      limit: 500,
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(result).toEqual(upgrades)
+  })
+
+  it('omits undefined optional keys for testnetUpgrades (no range supplied)', async () => {
+    const { http, fetchMock } = buildClient((_url, init) => {
+      const body = readBody(init)
+      expect(body).toEqual({ type: 'testnetUpgrades' })
+      return mockResponse({ success: true, data: [] })
+    })
+    const info = new InfoResource(http)
+    const result = await info.info({ type: 'testnetUpgrades' })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(result).toEqual([])
+  })
+})
