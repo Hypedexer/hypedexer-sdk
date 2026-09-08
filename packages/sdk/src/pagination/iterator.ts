@@ -47,6 +47,31 @@ function timeOfRow(row: unknown, key: string): number | null {
   return null
 }
 
+/**
+ * Drives a paginated endpoint to completion, yielding every row across all
+ * pages as one flat async stream.
+ *
+ * @remarks
+ * {@link PaginationContext.kind} selects how pages are chained: `'cursor'`
+ * follows `meta.nextCursor`, `'offset'` advances the offset by the page limit,
+ * `'timeWindow'` walks backward from the oldest row's time, and `'none'` yields
+ * a single page. Rows are yielded one at a time as each page arrives, so memory
+ * stays flat regardless of the total row count. Resource methods such as
+ * `sdk.vaults.iterate(...)` wrap this with the correct fetcher and context.
+ *
+ * @param fetcher - Fetches one {@link Page} of `T` for the given params; called
+ *   once per page with params updated for the next page.
+ * @param initialParams - Params for the first page; later pages reuse these with
+ *   the cursor, offset, or `endTime` overwritten per strategy.
+ * @param ctx - Pagination strategy and its tuning parameters.
+ * @returns An async iterable of `T` rows spanning every page.
+ * @example
+ * ```ts
+ * for await (const vault of sdk.vaults.iterate({ limit: 100 })) {
+ *   console.log(vault.name)
+ * }
+ * ```
+ */
 export async function* iterate<T, P extends Record<string, unknown>>(
   fetcher: PageFetcher<T, P>,
   initialParams: P,
