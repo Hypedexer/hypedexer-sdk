@@ -179,6 +179,35 @@ Legend:
 | GET `/evm/hip3/backstop/{dex}/health` | API | none | — | — | path `dex` | 404 `{detail: string}` on unknown | — |
 | GET `/evm/hip3/backstop/{dex}/fills` | API | offset | iso-snake | 1000 | path `dex` | ⚠ unknown dex → 200 empty (inconsistent with `/health`); simplified Fill shape | — |
 
+## Elysium testnet (2026-09-30) - `src/resources/elysium.ts`
+
+Kinetiq's L2 on Hyperliquid. `client.elysium.testnet.*`; mainnet will use the same shapes under `/elysium/mainnet`. Upstream validates enums, `limit`, addresses and hashes strictly (422); the SDK validates the same client-side. Timestamps are UTC without a `Z`.
+
+| Method + Path | Envelope | Pagination | Time params | Cap | Required | Known issues | /info type |
+|---|---|---|---|---|---|---|---|
+| GET `/elysium/testnet/stats` | API | none | - | - | - | ✅ | - |
+| GET `/elysium/testnet/stats/daily` | API | none-list | - | days: 365 | - | ✅ current UTC day is partial | - |
+| GET `/elysium/testnet/blocks` | API | offset | iso-snake | 1000 | - | ✅ | - |
+| GET `/elysium/testnet/blocks/{block_number}` | API | none | - | - | path `block_number` | 404 `{detail: string}`; `batch_number` null until posted | - |
+| GET `/elysium/testnet/blocks/{block_number}/transactions` | API | none-list | - | - | path `block_number` | ✅ `success`/`is_system`/`is_spam` wire ints → SDK booleans | - |
+| GET `/elysium/testnet/transactions` | API | offset | iso-snake | 1000 | - | ✅ `include_system`/`include_spam` default true | - |
+| GET `/elysium/testnet/transactions/{tx_hash}` | API | none | - | - | path `tx_hash` (0x + 64 hex) | ⚠ a tx listed seconds ago can 404 briefly (observed 2026-09-30) | - |
+| GET `/elysium/testnet/logs` | API | offset | iso-snake | 1000 | - | ⚠ topics empty string when absent | - |
+| GET `/elysium/testnet/batches` | API | offset | iso-snake | 1000 | - | ✅ | - |
+| GET `/elysium/testnet/batches/{batch_number}` | API | none | - | - | path `batch_number` | 404 on unknown | - |
+| GET `/elysium/testnet/bridge/transfers` | API | offset | iso-snake | 1000 | - | ✅ enums strict (422) | - |
+| GET `/elysium/testnet/bridge/transfers/{tx_hash}` | API | none-list | - | - | path `tx_hash` | ⚠ returns a LIST (one tx can carry several transfers); SDK `track()` | - |
+| GET `/elysium/testnet/bridge/retryables` | API | offset | iso-snake | 1000 | - | ✅ | - |
+| GET `/elysium/testnet/bridge/tokens` | API | offset | - | 1000 | - | ✅ `route` is canonical or mirror only | - |
+| GET `/elysium/testnet/bridge/reserves` | API | none-list | - | - | - | ⚠ unfiltered list stopped at 1000 rows with `has_more=false` (observed 2026-09-28); filter by `route` | - |
+| GET `/elysium/testnet/tokens` | API | offset | - | 1000 | - | ✅ | - |
+| GET `/elysium/testnet/tokens/{address}` | API | none | - | - | path `address` | 404 on unknown | - |
+| GET `/elysium/testnet/tokens/{address}/holders` | API | offset | - | 1000 | path `address` | ✅ | - |
+| GET `/elysium/testnet/tokens/{address}/transfers` | API | offset | iso-snake | 1000 | path `address` | ✅ | - |
+| GET `/elysium/testnet/user/{address}/balances` | API | none | - | - | path `address` | ✅ optional `block` for a past state | - |
+| GET `/elysium/testnet/user/{address}/activity` | API | offset | iso-snake | 1000 | path `address` | ✅ | - |
+| GET `/elysium/testnet/user/{address}/bridge` | API | offset | iso-snake | 1000 | path `address` | ✅ | - |
+
 ## Priority fees gossip (batch-9) — `src/resources/priority-fees.ts`
 
 | Method + Path | Envelope | Pagination | Time params | Cap | Required | Known issues | /info type |
@@ -202,10 +231,10 @@ Legend:
 
 ## Totals
 
-- **REST endpoints**: 89 (6 fills + 5 analytics + 8 overview + 5 users + 4 completed-trades + 2 liquidations + 18 hip3 + 10 hip4 + 6 builders + 5 twaps + 3 funding + 6 vaults + 4 spot + 16 evm + 2 gossip) — `/hip4/markets` and `/hip4/outcomes` count as 2 distinct endpoints (aliases).
+- **REST endpoints**: 122 (6 fills + 5 analytics + 8 overview + 5 users + 4 completed-trades + 2 liquidations + 18 hip3 + 10 hip4 + 6 builders + 5 twaps + 3 funding + 6 vaults + 4 spot + 16 evm + 2 gossip + 22 elysium) — `/hip4/markets` and `/hip4/outcomes` count as 2 distinct endpoints (aliases).
 - **Dispatcher**: 1 (`POST /info`, verified 20 types).
 - **WebSocket**: 5 channels on 1 endpoint.
 
-**Grand total surface area**: 94 REST + 1 dispatcher + 5 WS channels = 100 entry points.
+**Grand total surface area**: 122 REST + 1 dispatcher + 5 WS channels = 128 entry points.
 
 When every row in this matrix is implemented in `src/resources/` (with the bug column either normalized or documented) and `src/transport/ws.ts` ships the 5 channels with reconnect + heartbeat + allowlist, v0.1.0 is releasable.

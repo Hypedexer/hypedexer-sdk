@@ -5,6 +5,17 @@ All notable changes to `@hypedexer/sdk` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `client.elysium.testnet`: the 22 routes under `/elysium/testnet` (Kinetiq's L2 on Hyperliquid). `stats` (`get`, `daily`), `blocks` (`list`, `get`, `transactions`), `transactions` (`list`, `get` with logs and decoded token transfers), `logs`, `batches` (`list`, `get`), `bridge` (`transfers`, `track`, `retryables`, `tokens`, `reserves`), `tokens` (`list`, `get`, `holders`, `transfers`) and `user(address)` (`balances`, `activity`, `bridge`), with offset iterators on the paginated lists. Wire ints `success`, `is_system` and `is_spam` are coerced to booleans; addresses, hashes, enums, `limit` and `days` are validated before any request.
+
+### Security
+
+- Dev dependencies updated so `pnpm audit` goes from 32 advisories (2 critical, 18 high) to 1 low: `vitest` 4.1.11, `tsup` 8.5.1, `vite` 6.4.x, and pnpm overrides for `js-yaml`, `fast-uri`, `tmp`, `yaml`, `postcss`, `nanoid` and old `esbuild`. None of them ships in the published package, which has no runtime dependencies.
+- CI runs with a read-only token and pins its actions to commit SHAs.
+
 ## [0.1.0-beta.3] - 2026-07-27
 
 ### Added

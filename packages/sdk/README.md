@@ -32,12 +32,12 @@ This SDK collapses all of that behind **one client, one envelope, one iterator, 
 
 |              |                                                                    |
 | ------------ | ------------------------------------------------------------------ |
-| **Coverage** | 97 REST endpoints + WebSocket firehose (5 channels)                |
-| **Resources**| 16 typed handles under `client.*`                                  |
+| **Coverage** | 119 REST endpoints + WebSocket firehose (5 channels)                |
+| **Resources**| 17 typed handles under `client.*`                                  |
 | **Errors**   | 10-class hierarchy, upstream body always preserved                 |
 | **Runtime**  | Zero dependencies (`ws` is an *optional* peer dep, lazy-loaded)    |
 | **Bundle**   | ESM + CJS dual exports, `sideEffects: false`                       |
-| **Tests**    | 501 unit tests + type-regression suite (`expectTypeOf`)            |
+| **Tests**    | 537 unit tests + type-regression suite (`expectTypeOf`)            |
 | **Supply**   | Published from GitHub Actions with `npm --provenance`              |
 
 > **AI coding agents:** read [`AGENTS.md`](./AGENTS.md) — task-oriented implementation guide with copy-liftable patterns, upstream quirks to defend against, and a security posture checklist. Shipped with the package.
@@ -146,6 +146,7 @@ The 16 handles exposed by `createClient({ apiKey })`:
 | `client.funding`          |         3 | `predicted`, `history`, `userFunding` (string-encoded `fundingRate`)                          |
 | `client.vaults`           |         6 | `list`, `details`, `dailySnapshots`, `equitySnapshots`, `ledger`, `userVaultEquities`         |
 | `client.evm`              |        16 | `blocks` (+ `transactions`), `transactions`, `logs`, `transfers`, `bridge`, `stats`, `user`, `hip3.backstop.*` |
+| `client.elysium`          |        22 | `testnet.`: `stats`, `blocks`, `transactions`, `logs`, `batches`, `bridge` (`transfers`, `track`, `retryables`, `tokens`, `reserves`), `tokens`, `user(addr).*` |
 | `client.priorityFees`     |         2 | Gossip `status`, `history`, `dedupedHistory` (client-side dedupe by `slot_id`)                |
 | `client.info`             |         1 | `info({ type, … })` — typed `/info` dispatcher with 19 known types                            |
 | `client.ws`               |  5 chans  | Realtime — see [WebSocket](#websocket)                                                        |

@@ -1,6 +1,7 @@
 import { AnalyticsResource } from './resources/analytics.js'
 import { BuildersResource } from './resources/builders.js'
 import { CompletedTradesResource } from './resources/completed-trades.js'
+import { ElysiumResource } from './resources/elysium.js'
 import { EvmResource } from './resources/evm.js'
 import { Fills } from './resources/fills.js'
 import { FundingResource } from './resources/funding.js'
@@ -67,6 +68,8 @@ export interface HypedexerClient {
   readonly priorityFees: PriorityFeesResource
   readonly info: InfoResource
   readonly evm: EvmResource
+  /** Elysium, Kinetiq's L2 on Hyperliquid: `client.elysium.testnet.*`. */
+  readonly elysium: ElysiumResource
   readonly http: HttpClient
   /**
    * Realtime WebSocket client. Construction is cheap (no socket opened) —
@@ -112,6 +115,7 @@ export function createClient(opts: HypedexerClientOptions): HypedexerClient {
     priorityFees: new PriorityFeesResource(http),
     info: new InfoResource(http),
     evm: new EvmResource(http),
+    elysium: new ElysiumResource(http),
     http,
     ws,
   }

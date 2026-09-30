@@ -369,6 +369,66 @@ export type {
 } from './types/priority-fees.js'
 
 // -----------------------------------------------------------------------------
+// Resource types: Elysium
+// -----------------------------------------------------------------------------
+
+export {
+  ELYSIUM_BRIDGE_ASSETS,
+  ELYSIUM_BRIDGE_DIRECTIONS,
+  ELYSIUM_BRIDGE_ROUTES,
+  ELYSIUM_BRIDGE_STATUSES,
+  ELYSIUM_BRIDGE_TOKEN_ROUTES,
+  ELYSIUM_NETWORKS,
+  ELYSIUM_RETRYABLE_STATUSES,
+  ELYSIUM_TOKEN_ORIGINS,
+  ELYSIUM_TOKEN_STANDARDS,
+} from './types/elysium.js'
+export type {
+  ElysiumBatch,
+  ElysiumBatchesParams,
+  ElysiumBlock,
+  ElysiumBlockDetail,
+  ElysiumBlocksParams,
+  ElysiumBridgeAsset,
+  ElysiumBridgeDirection,
+  ElysiumBridgeReserve,
+  ElysiumBridgeReservesParams,
+  ElysiumBridgeRoute,
+  ElysiumBridgeStatus,
+  ElysiumBridgeToken,
+  ElysiumBridgeTokenRoute,
+  ElysiumBridgeTokensParams,
+  ElysiumBridgeTransfer,
+  ElysiumBridgeTransfersParams,
+  ElysiumDailyStat,
+  ElysiumLog,
+  ElysiumLogsParams,
+  ElysiumNetwork,
+  ElysiumRetryableStatus,
+  ElysiumRetryablesParams,
+  ElysiumStats,
+  ElysiumStatsDailyParams,
+  ElysiumToken,
+  ElysiumTokenBalance,
+  ElysiumTokenDetail,
+  ElysiumTokenHolder,
+  ElysiumTokenHoldersParams,
+  ElysiumTokenOrigin,
+  ElysiumTokenStandard,
+  ElysiumTokenTransfer,
+  ElysiumTokenTransfersParams,
+  ElysiumTokensParams,
+  ElysiumTransaction,
+  ElysiumTransactionDetail,
+  ElysiumTransactionsParams,
+  ElysiumUserActivity,
+  ElysiumUserActivityParams,
+  ElysiumUserBalances,
+  ElysiumUserBalancesParams,
+  ElysiumUserBridgeParams,
+} from './types/elysium.js'
+
+// -----------------------------------------------------------------------------
 // Resource types — Tier-2: EVM
 // -----------------------------------------------------------------------------
 
@@ -453,6 +513,11 @@ export { VaultsResource } from './resources/vaults.js'
 export { PriorityFeesResource } from './resources/priority-fees.js'
 export { InfoResource } from './resources/info.js'
 export { EvmResource } from './resources/evm.js'
+export {
+  ElysiumResource,
+  ElysiumNetworkResource,
+  ElysiumUserResource,
+} from './resources/elysium.js'
 
 // -----------------------------------------------------------------------------
 // Client factory
