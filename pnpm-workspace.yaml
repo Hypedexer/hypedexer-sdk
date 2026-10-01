@@ -1,3 +1,7 @@
 packages:
   - 'packages/*'
   - 'examples'
+
+# Never resolve a version published less than 24 h ago: a fresh release is the usual
+# window for a compromised package, and the Hypedexer deploy host enforces the same rule.
+minimumReleaseAge: 1440
