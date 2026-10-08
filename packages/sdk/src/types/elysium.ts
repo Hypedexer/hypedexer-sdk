@@ -8,11 +8,15 @@ import type { Address, Hex, Wei } from './common.js'
 
 /** Elysium networks served under `/elysium/{network}`. Mainnet is not live yet. */
 export const ELYSIUM_NETWORKS = ['testnet'] as const
+/** One of `ELYSIUM_NETWORKS`. */
 export type ElysiumNetwork = (typeof ELYSIUM_NETWORKS)[number]
 
+/** Direction of a bridge transfer relative to Elysium. */
 export const ELYSIUM_BRIDGE_DIRECTIONS = ['deposit', 'withdrawal'] as const
+/** One of `ELYSIUM_BRIDGE_DIRECTIONS`. */
 export type ElysiumBridgeDirection = (typeof ELYSIUM_BRIDGE_DIRECTIONS)[number]
 
+/** Lifecycle states a bridge transfer moves through. */
 export const ELYSIUM_BRIDGE_STATUSES = [
   'initiated',
   'ticket_created',
@@ -21,25 +25,37 @@ export const ELYSIUM_BRIDGE_STATUSES = [
   'completed',
   'executed',
 ] as const
+/** One of `ELYSIUM_BRIDGE_STATUSES`. */
 export type ElysiumBridgeStatus = (typeof ELYSIUM_BRIDGE_STATUSES)[number]
 
+/** What a bridge transfer carries. */
 export const ELYSIUM_BRIDGE_ASSETS = ['native', 'token', 'message'] as const
+/** One of `ELYSIUM_BRIDGE_ASSETS`. */
 export type ElysiumBridgeAsset = (typeof ELYSIUM_BRIDGE_ASSETS)[number]
 
+/** Bridge route families. */
 export const ELYSIUM_BRIDGE_ROUTES = ['native', 'canonical', 'mirror'] as const
+/** One of `ELYSIUM_BRIDGE_ROUTES`. */
 export type ElysiumBridgeRoute = (typeof ELYSIUM_BRIDGE_ROUTES)[number]
 
 /** `/bridge/tokens` only lists token routes: the native asset has no registry entry. */
 export const ELYSIUM_BRIDGE_TOKEN_ROUTES = ['canonical', 'mirror'] as const
+/** One of `ELYSIUM_BRIDGE_TOKEN_ROUTES`. */
 export type ElysiumBridgeTokenRoute = (typeof ELYSIUM_BRIDGE_TOKEN_ROUTES)[number]
 
+/** Lifecycle states of a bridge retryable ticket. */
 export const ELYSIUM_RETRYABLE_STATUSES = ['pending', 'failed', 'expired', 'redeemed'] as const
+/** One of `ELYSIUM_RETRYABLE_STATUSES`. */
 export type ElysiumRetryableStatus = (typeof ELYSIUM_RETRYABLE_STATUSES)[number]
 
+/** Token standards the indexer recognizes. */
 export const ELYSIUM_TOKEN_STANDARDS = ['erc20', 'erc721', 'erc1155'] as const
+/** One of `ELYSIUM_TOKEN_STANDARDS`. */
 export type ElysiumTokenStandard = (typeof ELYSIUM_TOKEN_STANDARDS)[number]
 
+/** Where a token originates relative to Elysium. */
 export const ELYSIUM_TOKEN_ORIGINS = ['native', 'canonical'] as const
+/** One of `ELYSIUM_TOKEN_ORIGINS`. */
 export type ElysiumTokenOrigin = (typeof ELYSIUM_TOKEN_ORIGINS)[number]
 
 // -----------------------------------------------------------------------------
@@ -81,6 +97,7 @@ export interface ElysiumDailyStat {
   readonly gas_used: number
 }
 
+/** One row of `GET /elysium/{network}/blocks`. */
 export interface ElysiumBlock {
   readonly block_time: string
   readonly block_number: number
@@ -101,6 +118,7 @@ export interface ElysiumBlockDetail extends ElysiumBlock {
   readonly batch_number: number | null
 }
 
+/** One row of `GET /elysium/{network}/transactions`. */
 export interface ElysiumTransaction {
   readonly block_time: string
   readonly block_number: number
@@ -130,6 +148,7 @@ export interface ElysiumTransaction {
   readonly is_spam: boolean
 }
 
+/** One row of `GET /elysium/{network}/logs`. */
 export interface ElysiumLog {
   readonly block_time: string
   readonly block_number: number
@@ -145,6 +164,7 @@ export interface ElysiumLog {
   readonly data: Hex | ''
 }
 
+/** One row of `GET /elysium/{network}/tokens/{address}/transfers`. */
 export interface ElysiumTokenTransfer {
   readonly block_time: string
   readonly block_number: number
@@ -223,6 +243,7 @@ export interface ElysiumBridgeTransfer {
   readonly duration_s: number | null
 }
 
+/** One row of `GET /elysium/{network}/bridge/tokens`. */
 export interface ElysiumBridgeToken {
   readonly l2_token: Address
   readonly l1_token: Address
@@ -253,6 +274,7 @@ export interface ElysiumBridgeReserve {
   readonly backed: boolean
 }
 
+/** One row of `GET /elysium/{network}/tokens`. */
 export interface ElysiumToken {
   readonly address: Address
   readonly standard: ElysiumTokenStandard
@@ -268,6 +290,7 @@ export interface ElysiumToken {
   readonly transfer_count: number
 }
 
+/** `GET /elysium/{network}/tokens/{address}`: a token with supply and holder totals. */
 export interface ElysiumTokenDetail extends ElysiumToken {
   /** ERC-20: minted minus burned, at token scale. */
   readonly total_supply_raw: string
@@ -276,6 +299,7 @@ export interface ElysiumTokenDetail extends ElysiumToken {
   readonly last_transfer_time: string | null
 }
 
+/** One row of `GET /elysium/{network}/tokens/{address}/holders`. */
 export interface ElysiumTokenHolder {
   readonly address: Address
   /** ERC-721 / ERC-1155: number of tokens held. */
@@ -285,6 +309,7 @@ export interface ElysiumTokenHolder {
   readonly share: number
 }
 
+/** One token balance held by an address, as returned inside `ElysiumUserBalances`. */
 export interface ElysiumTokenBalance {
   readonly token: Address
   readonly standard: ElysiumTokenStandard
@@ -338,16 +363,19 @@ interface ElysiumTimeWindow {
   readonly endTime?: TimeInput
 }
 
+/** Query params for `GET /elysium/{network}/stats/daily`. */
 export interface ElysiumStatsDailyParams {
   /** 1..365, default 30 upstream. */
   readonly days?: number
 }
 
+/** Query params for `GET /elysium/{network}/blocks`. */
 export interface ElysiumBlocksParams extends ElysiumPageParams, ElysiumTimeWindow {
   readonly startBlock?: number
   readonly endBlock?: number
 }
 
+/** Query params for `GET /elysium/{network}/transactions`. */
 export interface ElysiumTransactionsParams extends ElysiumPageParams, ElysiumTimeWindow {
   readonly blockNumber?: number
   readonly fromAddr?: string
@@ -360,6 +388,7 @@ export interface ElysiumTransactionsParams extends ElysiumPageParams, ElysiumTim
   readonly includeSpam?: boolean
 }
 
+/** Query params for `GET /elysium/{network}/logs`. */
 export interface ElysiumLogsParams extends ElysiumPageParams, ElysiumTimeWindow {
   readonly blockNumber?: number
   readonly address?: string
@@ -367,8 +396,10 @@ export interface ElysiumLogsParams extends ElysiumPageParams, ElysiumTimeWindow 
   readonly txHash?: string
 }
 
+/** Query params for `GET /elysium/{network}/batches`. */
 export interface ElysiumBatchesParams extends ElysiumPageParams, ElysiumTimeWindow {}
 
+/** Query params for `GET /elysium/{network}/bridge/transfers`. */
 export interface ElysiumBridgeTransfersParams extends ElysiumPageParams, ElysiumTimeWindow {
   readonly address?: string
   readonly direction?: ElysiumBridgeDirection
@@ -380,20 +411,24 @@ export interface ElysiumBridgeTransfersParams extends ElysiumPageParams, Elysium
   readonly includeMessages?: boolean
 }
 
+/** Query params for `GET /elysium/{network}/bridge/retryables`. */
 export interface ElysiumRetryablesParams extends ElysiumPageParams, ElysiumTimeWindow {
   readonly status?: ElysiumRetryableStatus
   readonly address?: string
 }
 
+/** Query params for `GET /elysium/{network}/bridge/tokens`. */
 export interface ElysiumBridgeTokensParams extends ElysiumPageParams {
   readonly route?: ElysiumBridgeTokenRoute
 }
 
+/** Query params for `GET /elysium/{network}/bridge/reserves`. */
 export interface ElysiumBridgeReservesParams {
   readonly route?: ElysiumBridgeRoute
   readonly onlyUnbacked?: boolean
 }
 
+/** Query params for `GET /elysium/{network}/tokens`. */
 export interface ElysiumTokensParams extends ElysiumPageParams {
   readonly standard?: ElysiumTokenStandard
   readonly origin?: ElysiumTokenOrigin
@@ -401,19 +436,24 @@ export interface ElysiumTokensParams extends ElysiumPageParams {
   readonly search?: string
 }
 
+/** Query params for `GET /elysium/{network}/tokens/{address}/holders`. */
 export interface ElysiumTokenHoldersParams extends ElysiumPageParams {}
 
+/** Query params for `GET /elysium/{network}/tokens/{address}/transfers`. */
 export interface ElysiumTokenTransfersParams extends ElysiumPageParams, ElysiumTimeWindow {
   readonly holder?: string
 }
 
+/** Query params for `GET /elysium/{network}/user/{address}/balances`. */
 export interface ElysiumUserBalancesParams {
   /** Read balances at a past block. */
   readonly block?: number
 }
 
+/** Query params for `GET /elysium/{network}/user/{address}/activity`. */
 export interface ElysiumUserActivityParams extends ElysiumPageParams, ElysiumTimeWindow {}
 
+/** Query params for `GET /elysium/{network}/user/{address}/bridge`. */
 export interface ElysiumUserBridgeParams extends ElysiumPageParams, ElysiumTimeWindow {
   readonly direction?: ElysiumBridgeDirection
   readonly status?: ElysiumBridgeStatus
