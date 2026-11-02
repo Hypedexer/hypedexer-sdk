@@ -10,11 +10,14 @@ import type { Liquidation } from './liquidation.js'
  * server's welcome `available_subscriptions` list, so future server-side
  * additions don't immediately break the SDK (PLAN §H.4, bug #18).
  *
- * Note: `liquidation` is **singular**, as advertised by the server. Treating it
- * as `liquidations` would silently fail (server-side bogus-channel accept; see
- * PLAN §I bug #18).
+ * Live 2026-11-02 the server serves only `liquidations` (plural on subscribe;
+ * its pushes carry `type: "liquidation"`, which the client delivers to both the
+ * `liquidations` and `liquidation` listeners). The other five names are kept for
+ * type compatibility; the server now answers "Unsupported subscription" for
+ * them, and {@link WSClient.subscribe} rejects with that message.
  */
 export const KNOWN_CHANNELS = [
+  'liquidations',
   'completed_trades',
   'fills_spot',
   'recent_activity',
@@ -104,6 +107,7 @@ export type RecentActivityItem =
 export interface ItemForMap {
   completed_trades: CompletedTradeItem
   fills_spot: Fill
+  liquidations: Liquidation
   liquidation: Liquidation
   hip4_events: Hip4Event
   recent_activity: RecentActivityItem

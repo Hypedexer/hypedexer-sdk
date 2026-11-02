@@ -532,3 +532,99 @@ describe('WSClient', () => {
     await client.disconnect()
   }, 10_000)
 })
+
+// ---------------------------------------------------------------------------
+// Current server protocol (live 2026-11-02): `connected` greeting, acks as
+// {channel: "subscriptionResponse"}, refusals as error frames, `liquidations`
+// pushes typed `liquidation`.
+// ---------------------------------------------------------------------------
+
+function currentProtocol(server: TestServer): void {
+  server.setSendWelcome(false)
+  server.wss.on('connection', (ws) => {
+    ws.send(JSON.stringify({ type: 'connected' }))
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString()) as {
+        method?: string
+        subscription?: { type: string; user?: string }
+      }
+      if (msg.method === 'list_subscriptions') {
+        ws.send(
+          JSON.stringify({ type: 'error', message: 'Unknown message type: list_subscriptions' }),
+        )
+        return
+      }
+      const sub = msg.subscription
+      if (!sub) return
+      if (sub.type !== 'liquidations') {
+        ws.send(JSON.stringify({ type: 'error', message: `Unsupported subscription: ${sub.type}` }))
+        return
+      }
+      ws.send(
+        JSON.stringify({
+          channel: 'subscriptionResponse',
+          data: { method: msg.method, subscription: sub },
+        }),
+      )
+    })
+  })
+}
+
+describe('WSClient against the current protocol', () => {
+  let server: TestServer
+
+  beforeEach(async () => {
+    server = await bootServer()
+    currentProtocol(server)
+  })
+
+  afterEach(async () => {
+    await server.close()
+  })
+
+  it('defaults to the /ws endpoint', () => {
+    const client = new WSClient({ apiKey: 'k' })
+    expect((client as unknown as { baseUrl: string }).baseUrl).toBe('wss://api.hypedexer.com/ws')
+  })
+
+  it('connects on `connected`, acks subscribe/unsubscribe and delivers liquidations', async () => {
+    const client = makeClient(server)
+    await client.connect()
+    const user = `0x${'a'.repeat(40)}` as const
+    await client.subscribe('liquidations', { user })
+
+    const plural: string[] = []
+    const singular: string[] = []
+    client.on('liquidations', (m) => plural.push(m.channel))
+    client.on('liquidation', (m) => singular.push(m.channel))
+    server
+      .lastSocket()
+      ?.send(JSON.stringify({ type: 'liquidation', count: 1, data: [{ coin: 'BTC', tid: 1 }] }))
+    await new Promise<void>((r) => setTimeout(r, 30))
+    expect(plural).toEqual(['liquidations'])
+    expect(singular).toEqual(['liquidation'])
+
+    await client.unsubscribe('liquidations', { user })
+    await client.disconnect()
+  })
+
+  it('rejects a refused channel at once with the server message', async () => {
+    const client = makeClient(server, { requestTimeoutMs: 2_000 })
+    client.on('error', () => {})
+    await client.connect()
+    const started = Date.now()
+    await expect(client.subscribe('completed_trades')).rejects.toThrow(
+      'Unsupported subscription: completed_trades',
+    )
+    expect(Date.now() - started).toBeLessThan(1_000)
+    await client.disconnect()
+  })
+
+  it('listSubscriptions() rejects when the server does not support it', async () => {
+    const client = makeClient(server, { requestTimeoutMs: 2_000 })
+    client.on('error', () => {})
+    await client.connect()
+    await expect(client.listSubscriptions()).rejects.toBeInstanceOf(WSProtocolError)
+    await client.disconnect()
+  })
+})

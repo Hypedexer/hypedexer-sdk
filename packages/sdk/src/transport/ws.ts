@@ -9,7 +9,7 @@ import {
 import type { Address } from '../types/common.js'
 import { KNOWN_CHANNELS, type WSChannel, type WSMessage } from '../types/ws.js'
 
-const DEFAULT_BASE_URL = 'wss://api.hypedexer.com'
+const DEFAULT_BASE_URL = 'wss://api.hypedexer.com/ws'
 const DEFAULT_HEARTBEAT_MS = 25_000
 const DEFAULT_REQUEST_TIMEOUT_MS = 5_000
 const RECONNECT_BACKOFF_MS = [1_000, 2_000, 4_000, 8_000, 16_000, 60_000] as const
@@ -101,6 +101,7 @@ export interface WSCloseInfo {
 export type WSEventHandlers = {
   completed_trades: (msg: WSMessage<'completed_trades'>) => void
   fills_spot: (msg: WSMessage<'fills_spot'>) => void
+  liquidations: (msg: WSMessage<'liquidations'>) => void
   liquidation: (msg: WSMessage<'liquidation'>) => void
   hip4_events: (msg: WSMessage<'hip4_events'>) => void
   recent_activity: (msg: WSMessage<'recent_activity'>) => void
@@ -354,7 +355,8 @@ export class WSClient {
    *
    * The overload set narrows the handler's payload to the right shape
    * per event:
-   * - `'completed_trades' | 'fills_spot' | 'liquidation' | 'hip4_events' |
+   * - `'liquidations'` (the channel the server serves today) and the legacy
+   *   `'completed_trades' | 'fills_spot' | 'liquidation' | 'hip4_events' |
    *   'recent_activity'` → {@link WSMessage} `<channel>` (the SDK
    *   normalises wire `{type, count, data}` to `{channel, count, items}`,
    *   PLAN §H.6).
@@ -371,6 +373,7 @@ export class WSClient {
    */
   on(event: 'completed_trades', handler: WSEventHandlers['completed_trades']): () => void
   on(event: 'fills_spot', handler: WSEventHandlers['fills_spot']): () => void
+  on(event: 'liquidations', handler: WSEventHandlers['liquidations']): () => void
   on(event: 'liquidation', handler: WSEventHandlers['liquidation']): () => void
   on(event: 'hip4_events', handler: WSEventHandlers['hip4_events']): () => void
   on(event: 'recent_activity', handler: WSEventHandlers['recent_activity']): () => void
@@ -402,6 +405,7 @@ export class WSClient {
    */
   off(event: 'completed_trades', handler: WSEventHandlers['completed_trades']): void
   off(event: 'fills_spot', handler: WSEventHandlers['fills_spot']): void
+  off(event: 'liquidations', handler: WSEventHandlers['liquidations']): void
   off(event: 'liquidation', handler: WSEventHandlers['liquidation']): void
   off(event: 'hip4_events', handler: WSEventHandlers['hip4_events']): void
   off(event: 'recent_activity', handler: WSEventHandlers['recent_activity']): void
@@ -786,10 +790,19 @@ export class WSClient {
       return
     }
 
+    // Current protocol (live 2026-11-02): acks arrive as
+    // {channel: "subscriptionResponse", data: {method, subscription}}, with no `type`.
+    if (parsed['channel'] === 'subscriptionResponse') {
+      this.handleSubscriptionResponse(parsed['data'])
+      return
+    }
+
     const type = parsed['type']
     if (typeof type !== 'string') return
 
-    if (type === 'welcome') {
+    // `connected` is the current greeting; `welcome` the earlier one, which
+    // also carried `available_subscriptions`.
+    if (type === 'welcome' || type === 'connected') {
       this.handleWelcome(parsed)
       return
     }
@@ -878,10 +891,33 @@ export class WSClient {
     }
   }
 
+  private handleSubscriptionResponse(data: unknown): void {
+    if (!isRecord(data)) return
+    if (data['method'] === 'subscribe') this.handleSubscriptionAdded(data)
+    else if (data['method'] === 'unsubscribe') this.handleSubscriptionRemoved(data)
+  }
+
   private handleErrorFrame(frame: Record<string, unknown>): void {
     const message =
       typeof frame['message'] === 'string' ? (frame['message'] as string) : 'WS error frame'
-    this.emit('error', new WSProtocolError(message, buildErrorOpts({ rawBody: frame })))
+    const error = new WSProtocolError(message, buildErrorOpts({ rawBody: frame }))
+    // Settle the request the error answers instead of letting it time out.
+    const refused = /^Unsupported subscription: (\S+)/.exec(message)?.[1]
+    if (refused !== undefined) {
+      for (const [key, pending] of this.pendingSubscribe) {
+        if (!key.startsWith(`${refused}|`)) continue
+        clearTimeout(pending.timer)
+        this.pendingSubscribe.delete(key)
+        pending.reject(error)
+      }
+    } else if (message.includes('list_subscriptions')) {
+      const pending = this.pendingListSubscriptions.shift()
+      if (pending) {
+        clearTimeout(pending.timer)
+        pending.reject(error)
+      }
+    }
+    this.emit('error', error)
   }
 
   private handlePush(channelName: string, frame: Record<string, unknown>): void {
@@ -892,6 +928,10 @@ export class WSClient {
     const count = typeof frame['count'] === 'number' ? (frame['count'] as number) : items.length
     const msg = { channel: channelName, count, items }
     this.dispatch(channelName, msg)
+    // `liquidations` subscriptions push frames typed `liquidation`.
+    if (channelName === 'liquidation') {
+      this.dispatch('liquidations', { channel: 'liquidations', count, items })
+    }
   }
 
   private dispatch(event: string, payload: unknown): void {

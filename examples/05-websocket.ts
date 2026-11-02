@@ -1,7 +1,7 @@
 /**
  * 05 — WebSocket subscription.
  *
- * Opens the realtime WS, subscribes to the `completed_trades` channel, prints
+ * Opens the realtime WS, subscribes to the `liquidations` channel, prints
  * every push for 15 s, then cleanly disconnects. Demonstrates:
  *
  * - lazy `ws` peer dep — construction is cheap, `connect()` opens the socket
@@ -30,17 +30,17 @@ client.ws.on('error', (err) => console.error(`[ws] error: ${err.name}: ${err.mes
 
 let received = 0
 const stopAt = Date.now() + 15_000
-client.ws.on('completed_trades', (msg) => {
+client.ws.on('liquidations', (msg) => {
   received += msg.count
   const preview = msg.items.slice(0, 3)
-  console.log(`[completed_trades] +${msg.count} (total=${received})`, preview)
+  console.log(`[liquidations] +${msg.count} (total=${received})`, preview)
 })
 
 await client.ws.connect()
-await client.ws.subscribe('completed_trades')
+await client.ws.subscribe('liquidations')
 
 await new Promise<void>((r) => setTimeout(r, Math.max(0, stopAt - Date.now())))
 
-console.log(`\nreceived ${received} completed trades in 15 s`)
-await client.ws.unsubscribe('completed_trades')
+console.log(`\nreceived ${received} liquidations in 15 s`)
+await client.ws.unsubscribe('liquidations')
 await client.ws.disconnect()

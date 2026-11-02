@@ -19,7 +19,7 @@ export HYPEDEXER_API_KEY=hl_live_… # your key from https://app.hypedexer.com
 | `pnpm --filter @hypedexer/examples run example:profile`      | Fetches a user's overview + top coins (parallel).    |
 | `pnpm --filter @hypedexer/examples run example:hip3`         | Lists HIP-3 dexs and dives into `xyz:*` assets.      |
 | `pnpm --filter @hypedexer/examples run example:liquidations` | Recent liquidations + filter on `xyz:AAPL`.          |
-| `pnpm --filter @hypedexer/examples run example:websocket`    | Subscribes to `completed_trades` for 15 seconds.     |
+| `pnpm --filter @hypedexer/examples run example:websocket`    | Subscribes to `liquidations` for 15 seconds.         |
 | `pnpm --filter @hypedexer/examples run example:errors`       | Triggers each SDK error class and narrows on it.     |
 
 Pass `HL_USER=0x…` to `profile` to target a different address.
