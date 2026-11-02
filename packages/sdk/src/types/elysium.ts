@@ -6,8 +6,8 @@ import type { Address, Hex, Wei } from './common.js'
 // client-side so the failure mode matches the other enum-bearing endpoints.
 // -----------------------------------------------------------------------------
 
-/** Elysium networks served under `/elysium/{network}`. Mainnet is not live yet. */
-export const ELYSIUM_NETWORKS = ['testnet'] as const
+/** Elysium networks served under `/elysium/{network}` (both live, same shapes). */
+export const ELYSIUM_NETWORKS = ['mainnet', 'testnet'] as const
 /** One of `ELYSIUM_NETWORKS`. */
 export type ElysiumNetwork = (typeof ELYSIUM_NETWORKS)[number]
 

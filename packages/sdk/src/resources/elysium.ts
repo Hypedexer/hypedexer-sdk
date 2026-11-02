@@ -550,16 +550,18 @@ export class ElysiumNetworkResource {
 /**
  * Elysium, Kinetiq's L2 on Hyperliquid, indexed end to end: blocks,
  * transactions, logs, the batches it posts on HyperEVM, the bridge, tokens and
- * accounts. Only the testnet is live; mainnet routes will sit under
- * `/elysium/mainnet` with the same shapes.
+ * accounts. `mainnet` (chain 99901) and `testnet` serve the same routes and
+ * shapes under `/elysium/mainnet` and `/elysium/testnet`.
  *
  * @example
- * const { data } = await client.elysium.testnet.stats.daily({ days: 7 })
+ * const { data } = await client.elysium.mainnet.stats.daily({ days: 7 })
  */
 export class ElysiumResource {
+  readonly mainnet: ElysiumNetworkResource
   readonly testnet: ElysiumNetworkResource
 
   constructor(http: HttpClient) {
+    this.mainnet = new ElysiumNetworkResource(http, 'mainnet')
     this.testnet = new ElysiumNetworkResource(http, 'testnet')
   }
 }

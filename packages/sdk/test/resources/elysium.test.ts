@@ -44,6 +44,23 @@ describe('client wiring', () => {
     const client = createClient({ apiKey: 'k' })
     expect(client.elysium.testnet.stats).toBeDefined()
   })
+
+  it('exposes client.elysium.mainnet on /elysium/mainnet', async () => {
+    const calls: URL[] = []
+    const fetchMock = vi.fn(async (input: string | URL) => {
+      calls.push(new URL(input.toString()))
+      return new Response(JSON.stringify(apiResponse(fx.stats)), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    })
+    const http = new HttpClient({ apiKey: 'k', fetch: fetchMock as unknown as typeof fetch })
+    const ely = new ElysiumResource(http).mainnet
+    await ely.stats.get()
+    expect(calls[0]?.pathname).toBe('/elysium/mainnet/stats')
+    await ely.tokens.list({ limit: 1 })
+    expect(calls[1]?.pathname).toBe('/elysium/mainnet/tokens')
+  })
 })
 
 describe('stats', () => {
