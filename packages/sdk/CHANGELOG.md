@@ -5,6 +5,25 @@ All notable changes to `@hypedexer/sdk` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `client.elysium.mainnet`: the same 22 routes under `/elysium/mainnet` (chain 99901), same shapes as testnet (live-verified 2026-11-02). `ElysiumNetwork` is now `'mainnet' | 'testnet'`.
+- WS channel `liquidations`, the one the server serves today; `subscribe('liquidations', { user })` follows one wallet. Its pushes, typed `liquidation` on the wire, reach both the `liquidations` and `liquidation` listeners.
+
+### Fixed
+
+- `WSClient` works against the current server again (it could not connect at all):
+  - the default URL is now `wss://api.hypedexer.com/ws`; the bare host answered the upgrade with 200;
+  - the `{type: "connected"}` greeting counts as the welcome, where `connect()` used to wait for a `welcome` frame the server no longer sends;
+  - `{channel: "subscriptionResponse"}` acks settle `subscribe()` / `unsubscribe()`, which used to time out.
+- A refused channel (`Unsupported subscription: …`) now rejects `subscribe()` at once with that message, and `listSubscriptions()` rejects when the server does not support it, instead of waiting for the timeout. `completed_trades`, `fills_spot`, `liquidation`, `hip4_events` and `recent_activity` remain in the types, but the server refuses them.
+
+### Security
+
+- Dev dependencies: `vite` 6.4.5, `vitest` 4.1.12, `ws` 8.22.1, `@types/ws` 8.18.2, `tsx` 4.23.15, and overrides for `fast-uri`, `esbuild` (0.28) and `source-map-js`. `pnpm audit` goes from 13 advisories (2 high) to 0. The published package still has no runtime dependencies.
+
 ## [0.1.0-beta.4] - 2026-09-30
 
 ### Added

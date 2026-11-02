@@ -102,11 +102,11 @@ const client = createClient({ apiKey: process.env.HYPEDEXER_API_KEY! })
 
 await client.ws.connect()
 
-client.ws.on('completed_trades', ({ items }) => {
-  for (const it of items) console.log(it.coin, it.px, it.sz)
+client.ws.on('liquidations', ({ items }) => {
+  for (const it of items) console.log(it.coin, it.liquidated_user, it.notional_total)
 })
 
-await client.ws.subscribe('completed_trades')
+await client.ws.subscribe('liquidations')
 // … later
 await client.ws.disconnect()
 ```
@@ -146,7 +146,7 @@ The 16 handles exposed by `createClient({ apiKey })`:
 | `client.funding`          |         3 | `predicted`, `history`, `userFunding` (string-encoded `fundingRate`)                          |
 | `client.vaults`           |         6 | `list`, `details`, `dailySnapshots`, `equitySnapshots`, `ledger`, `userVaultEquities`         |
 | `client.evm`              |        16 | `blocks` (+ `transactions`), `transactions`, `logs`, `transfers`, `bridge`, `stats`, `user`, `hip3.backstop.*` |
-| `client.elysium`          |        22 | `testnet.`: `stats`, `blocks`, `transactions`, `logs`, `batches`, `bridge` (`transfers`, `track`, `retryables`, `tokens`, `reserves`), `tokens`, `user(addr).*` |
+| `client.elysium`          |        22 | `mainnet.` or `testnet.`: `stats`, `blocks`, `transactions`, `logs`, `batches`, `bridge` (`transfers`, `track`, `retryables`, `tokens`, `reserves`), `tokens`, `user(addr).*` |
 | `client.priorityFees`     |         2 | Gossip `status`, `history`, `dedupedHistory` (client-side dedupe by `slot_id`)                |
 | `client.info`             |         1 | `info({ type, … })` — typed `/info` dispatcher with 19 known types                            |
 | `client.ws`               |  5 chans  | Realtime — see [WebSocket](#websocket)                                                        |
@@ -203,16 +203,15 @@ const client = createClient({ apiKey: process.env.HYPEDEXER_API_KEY! })
 
 await client.ws.connect()
 
-const off = client.ws.on('completed_trades', ({ items }) => {
-  for (const it of items) console.log(it.coin, it.px, it.sz)
+const off = client.ws.on('liquidations', ({ items }) => {
+  for (const it of items) console.log(it.coin, it.liquidated_user, it.notional_total)
 })
 
 client.ws.on('reconnect', ({ attempt }) => console.log('reconnecting #' + attempt))
 client.ws.on('error',     (err)          => console.error('ws error:', err))
 
-await client.ws.subscribe('completed_trades')
-await client.ws.subscribe('fills_spot')
-await client.ws.subscribe('liquidation')
+await client.ws.subscribe('liquidations')
+await client.ws.subscribe('liquidations', { user: '0x…' }) // one wallet only
 
 // later
 off()
@@ -230,7 +229,7 @@ await client.ws.disconnect()
 | **Channel allowlist** | `KNOWN_CHANNELS` enforced client-side. Welcome frame's `available_subscriptions` extends it at runtime                       |
 | **Outbound discipline** | Every frame is `JSON.stringify`'d — the server crashes on raw strings (PLAN §I #19)                                        |
 
-**5 channels:** `completed_trades`, `fills_spot`, `liquidation`, `hip4_events`, `recent_activity`.
+**Channels:** the endpoint (`wss://api.hypedexer.com/ws`) serves `liquidations` (live-verified 2026-11-02). `completed_trades`, `fills_spot`, `liquidation`, `hip4_events` and `recent_activity` stay in the type for compatibility, but the server now refuses them and `subscribe()` rejects with its message (`Unsupported subscription: …`).
 
 ---
 
